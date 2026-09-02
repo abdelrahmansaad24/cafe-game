@@ -135,6 +135,63 @@ export default async function DashboardPage() {
             Play سكرو (Screw) →
           </Link>
         </div>
+
+        {/* Pingo Card */}
+        <div className="flex flex-col justify-between rounded-3xl border border-zinc-200 dark:border-zinc-800 bg-white/90 dark:bg-zinc-900/90 p-5 shadow-sm">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-2xl">🎱</span>
+              <h2 className="text-base font-bold text-zinc-900 dark:text-zinc-50">بينجو (Pingo)</h2>
+            </div>
+            <p className="mt-2 text-xs text-zinc-600 dark:text-zinc-400">
+              5x5 Number scratching game! Call numbers, scratch rows, cols & diags, complete P-I-N-G-O!
+            </p>
+          </div>
+          <Link
+            href="/games/pingo?lang=ar"
+            className="mt-5 rounded-xl bg-gradient-to-r from-purple-600 via-indigo-600 to-amber-500 px-3 py-2 text-center text-xs font-bold text-white hover:opacity-95 transition shadow-md shadow-purple-600/20"
+          >
+            Play بينجو (Pingo) →
+          </Link>
+        </div>
+
+        {/* Autobus Complete Card */}
+        <div className="flex flex-col justify-between rounded-3xl border border-zinc-200 dark:border-zinc-800 bg-white/90 dark:bg-zinc-900/90 p-5 shadow-sm">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-2xl">🚌</span>
+              <h2 className="text-base font-bold text-zinc-900 dark:text-zinc-50">أتوبيس كومبليت (Autobus)</h2>
+            </div>
+            <p className="mt-2 text-xs text-zinc-600 dark:text-zinc-400">
+              Arabic category word race! Boy, girl, animal, plant, item, country, food. Hit the buzzer and win!
+            </p>
+          </div>
+          <Link
+            href="/games/autobus?lang=ar"
+            className="mt-5 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-amber-500 px-3 py-2 text-center text-xs font-bold text-white hover:opacity-95 transition shadow-md shadow-emerald-600/20"
+          >
+            Play أتوبيس كومبليت →
+          </Link>
+        </div>
+
+        {/* Estimation Card */}
+        <div className="flex flex-col justify-between rounded-3xl border border-zinc-200 dark:border-zinc-800 bg-white/90 dark:bg-zinc-900/90 p-5 shadow-sm">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-2xl">♠️</span>
+              <h2 className="text-base font-bold text-zinc-900 dark:text-zinc-50">استميشن (Estimation)</h2>
+            </div>
+            <p className="mt-2 text-xs text-zinc-600 dark:text-zinc-400">
+              The king of cafe card games! 4 players, 13 tricks, bidding, Trumps, and Egyptian cafe score sheet.
+            </p>
+          </div>
+          <Link
+            href="/games/estimation?lang=ar"
+            className="mt-5 rounded-xl bg-gradient-to-r from-amber-600 via-orange-600 to-rose-600 px-3 py-2 text-center text-xs font-bold text-white hover:opacity-95 transition shadow-md shadow-amber-600/20"
+          >
+            Play استميشن (Estimation) →
+          </Link>
+        </div>
       </div>
     </main>
   );

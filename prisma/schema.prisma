@@ -252,6 +252,15 @@ model User {
   screwRoomPlayers          ScrewRoomPlayer[]
   createdScrewRooms         ScrewRoom[]                @relation("ScrewCreatedRooms")
   wonScrewRooms             ScrewRoom[]                @relation("ScrewWonRooms")
+  pingoRoomPlayers          PingoRoomPlayer[]
+  createdPingoRooms         PingoRoom[]                @relation("PingoCreatedRooms")
+  wonPingoRooms             PingoRoom[]                @relation("PingoWonRooms")
+  autobusRoomPlayers        AutobusRoomPlayer[]
+  createdAutobusRooms       AutobusRoom[]              @relation("AutobusCreatedRooms")
+  wonAutobusRooms           AutobusRoom[]              @relation("AutobusWonRooms")
+  estimationRoomPlayers     EstimationRoomPlayer[]
+  createdEstimationRooms    EstimationRoom[]           @relation("EstimationCreatedRooms")
+  wonEstimationRooms        EstimationRoom[]           @relation("EstimationWonRooms")
 }
 
 model Account {
@@ -698,3 +707,287 @@ model ScrewRoomAction {
   room      ScrewRoom        @relation(fields: [roomId], references: [id], onDelete: Cascade)
   actor     ScrewRoomPlayer? @relation("ScrewActionActor", fields: [actorId], references: [id], onDelete: SetNull)
 }
+
+enum PingoRoomVisibility {
+  PUBLIC
+  PRIVATE
+}
+
+enum PingoRoomStatus {
+  WAITING
+  PLAYING
+  FINISHED
+}
+
+enum PingoPhase {
+  SETUP
+  PLAYING
+  ROUND_OVER
+  FINISHED
+}
+
+enum PingoActionType {
+  JOIN
+  START
+  SETUP_CARD
+  READY
+  CALL_NUMBER
+  SHOUT_PINGO
+  NEXT_ROUND
+  REPLAY
+  LEAVE
+}
+
+model PingoRoom {
+  id                  String              @id @default(cuid())
+  roomCode            String              @unique
+  title               String
+  visibility          PingoRoomVisibility @default(PUBLIC)
+  passwordHash        String?
+  status              PingoRoomStatus     @default(WAITING)
+  currentPhase        PingoPhase          @default(SETUP)
+  scoreLimit          Int                 @default(3) // First to reach N round wins
+  roundNumber         Int                 @default(1)
+  currentTurnPlayerId String?
+  turnStartedAt       DateTime?
+  turnTimerSeconds    Int                 @default(30)
+  calledNumbersJson   String              @default("[]") // Array of Ints e.g. [5, 12, 19]
+  lastCalledNumber    Int?
+  roundWinnerId       String?
+  roundSummary        String?
+  createdById         String
+  winnerId            String?
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+  createdBy           User                @relation("PingoCreatedRooms", fields: [createdById], references: [id], onDelete: Cascade)
+  winner              User?               @relation("PingoWonRooms", fields: [winnerId], references: [id], onDelete: SetNull)
+  players             PingoRoomPlayer[]
+  actions             PingoRoomAction[]
+}
+
+model PingoRoomPlayer {
+  id                  String            @id @default(cuid())
+  roomId              String
+  userId              String
+  displayName         String
+  seatIndex           Int               @default(0)
+  score               Int               @default(0) // Total rounds won
+  isReady             Boolean           @default(false)
+  gridNumbersJson     String            @default("[]") // Array of 25 Ints (indices 0..24)
+  completedLinesCount Int               @default(0) // 0 to 12 completed lines
+  lettersUnlocked     String            @default("") // "P", "PI", "PIN", "PING", "PINGO"
+  claimedPingo        Boolean           @default(false)
+  isHost              Boolean           @default(false)
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  room                PingoRoom         @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user                User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  actions             PingoRoomAction[] @relation("PingoActionActor")
+
+  @@unique([roomId, userId])
+}
+
+model PingoRoomAction {
+  id        String           @id @default(cuid())
+  roomId    String
+  actorId   String?
+  type      PingoActionType
+  value     String?
+  details   String?
+  createdAt DateTime         @default(now())
+  room      PingoRoom        @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  actor     PingoRoomPlayer? @relation("PingoActionActor", fields: [actorId], references: [id], onDelete: SetNull)
+}
+
+enum AutobusRoomVisibility {
+  PUBLIC
+  PRIVATE
+}
+
+enum AutobusRoomStatus {
+  WAITING
+  PLAYING
+  FINISHED
+}
+
+enum AutobusPhase {
+  PLAYING
+  COUNTDOWN
+  REVIEW
+  ROUND_OVER
+  FINISHED
+}
+
+enum AutobusActionType {
+  JOIN
+  START
+  PRESS_AUTOBUS
+  SUBMIT_ANSWERS
+  VOTE_ANSWER
+  CONFIRM_SCORES
+  NEXT_ROUND
+  REPLAY
+  LEAVE
+}
+
+model AutobusRoom {
+  id                 String                @id @default(cuid())
+  roomCode           String                @unique
+  title              String
+  visibility         AutobusRoomVisibility @default(PUBLIC)
+  passwordHash       String?
+  status             AutobusRoomStatus     @default(WAITING)
+  currentPhase       AutobusPhase          @default(PLAYING)
+  scoreLimit         Int                   @default(100) // Target match points (e.g. 100)
+  roundNumber        Int                   @default(1)
+  currentLetter      String                @default("أ")
+  usedLettersJson    String                @default("[]") // JSON array of string e.g. ["أ", "م"]
+  countdownStartedAt DateTime?
+  countdownSeconds   Int                   @default(15)
+  autobusPresserId   String?
+  roundWinnerId      String?
+  roundSummary       String?
+  createdById        String
+  winnerId           String?
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+  createdBy          User                  @relation("AutobusCreatedRooms", fields: [createdById], references: [id], onDelete: Cascade)
+  winner             User?                 @relation("AutobusWonRooms", fields: [winnerId], references: [id], onDelete: SetNull)
+  players            AutobusRoomPlayer[]
+  actions            AutobusRoomAction[]
+}
+
+model AutobusRoomPlayer {
+  id           String              @id @default(cuid())
+  roomId       String
+  userId       String
+  displayName  String
+  seatIndex    Int                 @default(0)
+  score        Int                 @default(0) // Cumulative match score
+  roundPoints  Int                 @default(0) // Points earned in current round
+  answersJson  String              @default("{}") // JSON: { boy: "", girl: "", animal: "", plant: "", item: "", country: "", food: "" }
+  hasSubmitted Boolean             @default(false)
+  isHost       Boolean             @default(false)
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  room         AutobusRoom         @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  actions      AutobusRoomAction[] @relation("AutobusActionActor")
+
+  @@unique([roomId, userId])
+}
+
+model AutobusRoomAction {
+  id        String             @id @default(cuid())
+  roomId    String
+  actorId   String?
+  type      AutobusActionType
+  value     String?
+  details   String?
+  createdAt DateTime           @default(now())
+  room      AutobusRoom        @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  actor     AutobusRoomPlayer? @relation("AutobusActionActor", fields: [actorId], references: [id], onDelete: SetNull)
+}
+
+enum EstimationRoomVisibility {
+  PUBLIC
+  PRIVATE
+}
+
+enum EstimationRoomStatus {
+  WAITING
+  PLAYING
+  FINISHED
+}
+
+enum EstimationPhase {
+  BIDDING
+  SELECT_TRUMP
+  TRICK_PLAYING
+  ROUND_OVER
+  FINISHED
+}
+
+enum EstimationTrumpSuit {
+  SPADES
+  HEARTS
+  DIAMONDS
+  CLUBS
+  NO_TRUMP
+}
+
+enum EstimationActionType {
+  JOIN
+  START
+  BID
+  SELECT_TRUMP
+  PLAY_CARD
+  NEXT_ROUND
+  REPLAY
+  LEAVE
+}
+
+model EstimationRoom {
+  id                  String                   @id @default(cuid())
+  roomCode            String                   @unique
+  title               String
+  visibility          EstimationRoomVisibility @default(PUBLIC)
+  passwordHash        String?
+  status              EstimationRoomStatus     @default(WAITING)
+  currentPhase        EstimationPhase          @default(BIDDING)
+  roundsTotal         Int                      @default(4) // 4 or 8 rounds per match
+  roundNumber         Int                      @default(1)
+  currentTurnPlayerId String?
+  trumpSuit           EstimationTrumpSuit?
+  highBidderId        String?
+  highBid             Int?
+  leadSuit            String?                  // Suit of first card played in current trick
+  currentTrickJson    String                   @default("[]") // Array of { playerId, card }
+  trickNumber         Int                      @default(1) // 1 to 13
+  roundWinnerId       String?
+  winnerId            String?
+  createdById         String
+  createdAt           DateTime                 @default(now())
+  updatedAt           DateTime                 @updatedAt
+  createdBy           User                     @relation("EstimationCreatedRooms", fields: [createdById], references: [id], onDelete: Cascade)
+  winner              User?                    @relation("EstimationWonRooms", fields: [winnerId], references: [id], onDelete: SetNull)
+  players             EstimationRoomPlayer[]
+  actions             EstimationRoomAction[]
+}
+
+model EstimationRoomPlayer {
+  id               String                 @id @default(cuid())
+  roomId           String
+  userId           String
+  displayName      String
+  seatIndex        Int                    @default(0) // Fixed seats 0, 1, 2, 3
+  score            Int                    @default(0) // Total cumulative points
+  bid              Int?                   // Predicted tricks (0 to 13)
+  tricksWon        Int                    @default(0) // Tricks won in current round
+  handCardsJson    String                 @default("[]") // Array of 52-card objects
+  roundPoints      Int                    @default(0) // Points earned this round
+  scoreHistoryJson String                 @default("[]") // History of round scores for score sheet
+  isHost           Boolean                @default(false)
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+  room             EstimationRoom         @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user             User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  actions          EstimationRoomAction[] @relation("EstimationActionActor")
+
+  @@unique([roomId, userId])
+}
+
+model EstimationRoomAction {
+  id        String                @id @default(cuid())
+  roomId    String
+  actorId   String?
+  type      EstimationActionType
+  value     String?
+  details   String?
+  createdAt DateTime              @default(now())
+  room      EstimationRoom        @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  actor     EstimationRoomPlayer? @relation("EstimationActionActor", fields: [actorId], references: [id], onDelete: SetNull)
+}
+
+
+
