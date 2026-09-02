@@ -49,6 +49,12 @@ export async function Navbar() {
             >
               🎴 أونو (UNO)
             </Link>
+            <Link
+              href="/games/screw?lang=ar"
+              className="hover:text-zinc-900 dark:hover:text-zinc-100 transition font-bold text-amber-600 dark:text-amber-400"
+            >
+              🔩 سكرو (Screw)
+            </Link>
           </nav>
         </div>
 

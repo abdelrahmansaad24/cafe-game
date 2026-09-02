@@ -22,8 +22,8 @@ export default async function Home() {
         </p>
       </div>
 
-      {/* Game Cards Grid (5 Games) */}
-      <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+      {/* Game Cards Grid (6 Games) */}
+      <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {/* Game 1: Quarter Monkey */}
         <div className="group relative flex flex-col justify-between rounded-3xl border border-zinc-200 dark:border-zinc-800 bg-white/90 dark:bg-zinc-900/90 p-5 shadow-sm backdrop-blur-md transition hover:border-indigo-500 hover:shadow-xl hover:shadow-indigo-500/10">
           <div>
@@ -155,6 +155,33 @@ export default async function Home() {
               className="block w-full text-center rounded-xl bg-gradient-to-r from-red-600 via-rose-600 to-amber-500 px-3 py-2 text-xs font-bold text-white hover:opacity-95 transition shadow-md shadow-red-600/20"
             >
               العب أونو 🎴
+            </Link>
+          </div>
+        </div>
+
+        {/* Game 6: Screw (سكرو) */}
+        <div className="group relative flex flex-col justify-between rounded-3xl border border-zinc-200 dark:border-zinc-800 bg-white/90 dark:bg-zinc-900/90 p-5 shadow-sm backdrop-blur-md transition hover:border-amber-500 hover:shadow-xl hover:shadow-amber-500/10">
+          <div>
+            <div className="flex items-center justify-between">
+              <span className="text-3xl">🔩</span>
+              <span className="rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-300 px-2 py-0.5 text-[11px] font-bold border border-amber-500/20">
+                Memory & Bluff
+              </span>
+            </div>
+            <h2 className="mt-3 text-lg font-extrabold text-zinc-900 dark:text-zinc-50">
+              سكرو (Screw)
+            </h2>
+            <p className="mt-1.5 text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed">
+              Egyptian cafe memory card game! 4 or 6 cards grid, Peek cards, Blind Swap, Ping Pong 🏓, Red/Black Kings, and Screw call!
+            </p>
+          </div>
+
+          <div className="mt-5">
+            <Link
+              href="/games/screw?lang=ar"
+              className="block w-full text-center rounded-xl bg-gradient-to-r from-amber-600 via-orange-600 to-rose-600 px-3 py-2 text-xs font-bold text-white hover:opacity-95 transition shadow-md shadow-amber-600/20"
+            >
+              العب سكرو 🔩
             </Link>
           </div>
         </div>

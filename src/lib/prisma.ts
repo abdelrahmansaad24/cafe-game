@@ -23,7 +23,8 @@ const adapter = new PrismaPg(pgPool);
 // If the in-memory cached prisma instance is missing newly added models, invalidate it
 if (
   globalForPrisma.prisma &&
-  (!("unoRoom" in globalForPrisma.prisma) ||
+  (!("screwRoom" in globalForPrisma.prisma) ||
+    !("unoRoom" in globalForPrisma.prisma) ||
     !("dominoRoom" in globalForPrisma.prisma) ||
     !("bekasaRoom" in globalForPrisma.prisma) ||
     !("blinkRoom" in globalForPrisma.prisma))

@@ -183,6 +183,45 @@ enum UnoActionType {
   LEAVE
 }
 
+enum ScrewRoomVisibility {
+  PUBLIC
+  PRIVATE
+}
+
+enum ScrewRoomStatus {
+  WAITING
+  PLAYING
+  FINISHED
+}
+
+enum ScrewPhase {
+  PEEKING
+  PLAYING
+  FINAL_TURNS
+  ROUND_OVER
+  FINISHED
+}
+
+enum ScrewActionType {
+  JOIN
+  START_ROUND
+  DRAW_DECK
+  DRAW_DISCARD
+  REPLACE_SLOT
+  DISCARD_DRAWN
+  PEEK_SELF
+  PEEK_OTHER
+  SWAP_CARDS
+  PING_PONG
+  THE_THIEF
+  SPY_ALL
+  CALL_SCREW
+  BASRA
+  NEXT_ROUND
+  REPLAY
+  LEAVE
+}
+
 model User {
   id                        String                     @id @default(cuid())
   name                      String?
@@ -210,6 +249,9 @@ model User {
   unoRoomPlayers            UnoRoomPlayer[]
   createdUnoRooms           UnoRoom[]                  @relation("UnoCreatedRooms")
   wonUnoRooms               UnoRoom[]                  @relation("UnoWonRooms")
+  screwRoomPlayers          ScrewRoomPlayer[]
+  createdScrewRooms         ScrewRoom[]                @relation("ScrewCreatedRooms")
+  wonScrewRooms             ScrewRoom[]                @relation("ScrewWonRooms")
 }
 
 model Account {
@@ -581,4 +623,78 @@ model UnoRoomAction {
   createdAt DateTime       @default(now())
   room      UnoRoom        @relation(fields: [roomId], references: [id], onDelete: Cascade)
   actor     UnoRoomPlayer? @relation("UnoActionActor", fields: [actorId], references: [id], onDelete: SetNull)
+}
+
+// ----------------------------------------------------
+// Game 6: سكرو (Screw Card Game)
+// ----------------------------------------------------
+
+model ScrewRoom {
+  id                  String              @id @default(cuid())
+  roomCode            String              @unique
+  title               String
+  visibility          ScrewRoomVisibility @default(PUBLIC)
+  passwordHash        String?
+  mode                String              @default("SOLO") // "SOLO" or "TEAMS"
+  cardsPerPlayer      Int                 @default(4) // 4 cards (2x2) or 6 cards (2x3)
+  scoreLimit          Int                 @default(100) // 100, 150, 200 points match limit
+  turnTimerSeconds    Int                 @default(30) // 0 (off), 15, 30, 45, 60 seconds
+  turnStartedAt       DateTime?           // Timestamp when active turn started
+  doubleFinalRound    Boolean             @default(false) // Double points near threshold
+  screwPenaltyType    String              @default("PLUS_30") // "PLUS_30" or "DOUBLE_SCORE"
+  status              ScrewRoomStatus     @default(WAITING)
+  currentPhase        ScrewPhase          @default(PEEKING)
+  roundNumber         Int                 @default(1)
+  currentTurnPlayerId String?
+  screwCallerId       String?             // Player who called "سكرو!"
+  finalTurnsRemaining Int                 @default(0) // Remaining turns after screw is called
+  drawDeckJson        String              @default("[]") // Remaining cards in deck
+  discardPileJson     String              @default("[]") // Face-up discarded cards
+  activeDrawnCardJson String?             // Card currently held in hand by turn player
+  activeDrawnFrom     String?             // "DECK" or "DISCARD"
+  pendingActionJson   String?             // Action waiting for player target selection
+  roundWinnerId       String?
+  roundResultSummary  String?
+  createdById         String
+  winnerId            String?             // Match winner User ID
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+  startedAt           DateTime?
+  finishedAt          DateTime?
+  createdBy           User                @relation("ScrewCreatedRooms", fields: [createdById], references: [id], onDelete: Cascade)
+  winner              User?               @relation("ScrewWonRooms", fields: [winnerId], references: [id], onDelete: SetNull)
+  players             ScrewRoomPlayer[]
+  actions             ScrewRoomAction[]
+}
+
+model ScrewRoomPlayer {
+  id              String            @id @default(cuid())
+  roomId          String
+  userId          String
+  displayName     String
+  seatIndex       Int               @default(0)
+  team            String?           // "TEAM_A" or "TEAM_B"
+  score           Int               @default(0) // Accumulated points across rounds
+  gridJson        String            @default("[]") // ScrewCardSlot[]: cards placed in player's grid
+  initialPeekDone Boolean           @default(false)
+  isHost          Boolean           @default(false)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  room            ScrewRoom         @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  actions         ScrewRoomAction[] @relation("ScrewActionActor")
+
+  @@unique([roomId, userId])
+}
+
+model ScrewRoomAction {
+  id        String           @id @default(cuid())
+  roomId    String
+  actorId   String?
+  type      ScrewActionType
+  value     String?
+  details   String?
+  createdAt DateTime         @default(now())
+  room      ScrewRoom        @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  actor     ScrewRoomPlayer? @relation("ScrewActionActor", fields: [actorId], references: [id], onDelete: SetNull)
 }
