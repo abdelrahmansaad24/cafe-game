@@ -1,0 +1,366 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  PLAYER
+  ADMIN
+}
+
+enum QuarterMonkeyRoomVisibility {
+  PUBLIC
+  PRIVATE
+}
+
+enum QuarterMonkeyRoomStatus {
+  WAITING
+  PLAYING
+  FINISHED
+}
+
+enum QuarterMonkeyActionType {
+  JOIN
+  START
+  ADD_CHAR
+  SUSPECT
+  COMPLETE_CHALLENGE
+  FINISH_WORD
+  ROUND_RESULT
+  TIMEOUT
+  REPLAY
+  LEAVE
+}
+
+enum BlinkRoomVisibility {
+  PUBLIC
+  PRIVATE
+}
+
+enum BlinkRoomStatus {
+  WAITING
+  PLAYING
+  FINISHED
+}
+
+enum BlinkPhase {
+  ROLE_REVEAL
+  BLINKING
+  GUESSING
+  ROUND_OVER
+  FINISHED
+}
+
+enum BlinkActionType {
+  JOIN
+  START_ROUND
+  REVEAL_ROLE
+  READY
+  GOT_WINKED
+  MAKE_GUESS
+  NEXT_ROUND
+  REPLAY
+  LEAVE
+}
+
+enum BekasaRoomVisibility {
+  PUBLIC
+  PRIVATE
+}
+
+enum BekasaRoomStatus {
+  WAITING
+  PLAYING
+  FINISHED
+}
+
+enum BekasaPhase {
+  ROLE_REVEAL
+  MAIN_QUESTIONS
+  BONUS_QUESTIONS
+  VOTING
+  REVEAL_VOTES
+  BEKAS_GUESS
+  ROUND_OVER
+  FINISHED
+}
+
+enum BekasaActionType {
+  JOIN
+  START_ROUND
+  REVEAL_ROLE
+  READY
+  ADVANCE_QUESTION
+  BONUS_QUESTION
+  SKIP_BONUS
+  CAST_VOTE
+  REVEAL_BEKAS
+  BEKAS_GUESS
+  NEXT_ROUND
+  REPLAY
+  LEAVE
+}
+
+model User {
+  id                        String                     @id @default(cuid())
+  name                      String?
+  email                     String                     @unique
+  emailVerified             DateTime?
+  image                     String?
+  passwordHash              String?
+  role                      UserRole                   @default(PLAYER)
+  createdAt                 DateTime                   @default(now())
+  updatedAt                 DateTime                   @updatedAt
+  accounts                  Account[]
+  sessions                  Session[]
+  quarterMonkeyRoomPlayers  QuarterMonkeyRoomPlayer[]
+  createdQuarterMonkeyRooms QuarterMonkeyRoom[]        @relation("QuarterMonkeyCreatedRooms")
+  wonQuarterMonkeyRooms     QuarterMonkeyRoom[]        @relation("QuarterMonkeyWonRooms")
+  blinkRoomPlayers          BlinkRoomPlayer[]
+  createdBlinkRooms         BlinkRoom[]                @relation("BlinkCreatedRooms")
+  wonBlinkRooms             BlinkRoom[]                @relation("BlinkWonRooms")
+  bekasaRoomPlayers         BekasaRoomPlayer[]
+  createdBekasaRooms        BekasaRoom[]               @relation("BekasaCreatedRooms")
+  wonBekasaRooms            BekasaRoom[]               @relation("BekasaWonRooms")
+}
+
+model Account {
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([provider, providerAccountId])
+}
+
+model Session {
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([sessionToken])
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@id([identifier, token])
+}
+
+model QuarterMonkeyRoom {
+  id                     String                      @id @default(cuid())
+  roomCode               String                      @unique
+  title                  String
+  visibility             QuarterMonkeyRoomVisibility
+  passwordHash           String?
+  scoreLimit             Int                         @default(3)
+  turnTimerSeconds       Int?                        @default(30)
+  turnStartedAt          DateTime?                   @default(now())
+  usedWords              String[]                    @default([])
+  status                 QuarterMonkeyRoomStatus     @default(WAITING)
+  currentWord            String                      @default("")
+  currentTurnPlayerId    String?
+  previousTurnPlayerId   String?
+  challengeByPlayerId    String?
+  challengeTargetPlayerId String?
+  challengePrefix        String?
+  createdById            String
+  winnerId               String?
+  createdAt              DateTime                    @default(now())
+  updatedAt              DateTime                    @updatedAt
+  startedAt              DateTime?
+  finishedAt             DateTime?
+  createdBy              User                        @relation("QuarterMonkeyCreatedRooms", fields: [createdById], references: [id], onDelete: Cascade)
+  winner                 User?                       @relation("QuarterMonkeyWonRooms", fields: [winnerId], references: [id], onDelete: SetNull)
+  players                QuarterMonkeyRoomPlayer[]
+  actions                QuarterMonkeyRoomAction[]
+}
+
+model QuarterMonkeyRoomPlayer {
+  id           String                      @id @default(cuid())
+  roomId       String
+  userId       String
+  displayName  String
+  turnOrder    Int
+  penaltyScore Int                         @default(0)
+  isHost       Boolean                     @default(false)
+  eliminatedAt DateTime?
+  createdAt    DateTime                    @default(now())
+  updatedAt    DateTime                    @updatedAt
+  room         QuarterMonkeyRoom           @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user         User                        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  actions      QuarterMonkeyRoomAction[]   @relation("QuarterMonkeyActionActor")
+
+  @@unique([roomId, userId])
+  @@unique([roomId, turnOrder])
+}
+
+model QuarterMonkeyRoomAction {
+  id         String                   @id @default(cuid())
+  roomId     String
+  actorId    String?
+  type       QuarterMonkeyActionType
+  value      String?
+  success    Boolean?
+  details    String?
+  createdAt  DateTime                 @default(now())
+  room       QuarterMonkeyRoom        @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  actor      QuarterMonkeyRoomPlayer? @relation("QuarterMonkeyActionActor", fields: [actorId], references: [id], onDelete: SetNull)
+}
+
+// ----------------------------------------------------
+// Game 2: غمازة (Blink / Wink Murder)
+// ----------------------------------------------------
+
+model BlinkRoom {
+  id                  String              @id @default(cuid())
+  roomCode            String              @unique
+  title               String
+  visibility          BlinkRoomVisibility @default(PUBLIC)
+  passwordHash        String?
+  scoreLimit          Int                 @default(3) // Threshold points to win match
+  status              BlinkRoomStatus     @default(WAITING)
+  currentPhase        BlinkPhase          @default(ROLE_REVEAL)
+  roundNumber         Int                 @default(1)
+  blinkerPlayerId     String?             // Assigned Blinker player ID for this round
+  survivorPlayerId    String?             // Last innocent player survivor who guesses
+  guessTargetPlayerId String?             // Player guessed by survivor
+  roundWinnerPlayerId String?             // Player who won this round
+  roundResultSummary  String?             // Summary of round outcome
+  createdById         String
+  winnerId            String?             // Overall match winner (User ID)
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+  startedAt           DateTime?
+  finishedAt          DateTime?
+  createdBy           User                @relation("BlinkCreatedRooms", fields: [createdById], references: [id], onDelete: Cascade)
+  winner              User?               @relation("BlinkWonRooms", fields: [winnerId], references: [id], onDelete: SetNull)
+  players             BlinkRoomPlayer[]
+  actions             BlinkRoomAction[]
+}
+
+model BlinkRoomPlayer {
+  id           String            @id @default(cuid())
+  roomId       String
+  userId       String
+  displayName  String
+  score        Int               @default(0) // Points won
+  isHost       Boolean           @default(false)
+  isBlinker    Boolean           @default(false)
+  roleRevealed Boolean           @default(false)
+  isReady      Boolean           @default(false)
+  isWinked     Boolean           @default(false)
+  winkedAt     DateTime?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  room         BlinkRoom         @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  actions      BlinkRoomAction[] @relation("BlinkActionActor")
+
+  @@unique([roomId, userId])
+}
+
+model BlinkRoomAction {
+  id        String          @id @default(cuid())
+  roomId    String
+  actorId   String?
+  type      BlinkActionType
+  value     String?
+  details   String?
+  createdAt DateTime        @default(now())
+  room      BlinkRoom       @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  actor     BlinkRoomPlayer? @relation("BlinkActionActor", fields: [actorId], references: [id], onDelete: SetNull)
+}
+
+// ----------------------------------------------------
+// Game 3: بكاسة (Bekasa / Undercover / Impostor)
+// ----------------------------------------------------
+
+model BekasaRoom {
+  id                    String               @id @default(cuid())
+  roomCode              String               @unique
+  title                 String
+  visibility            BekasaRoomVisibility @default(PUBLIC)
+  passwordHash          String?
+  scoreLimit            Int                  @default(3) // Threshold points to win match
+  status                BekasaRoomStatus     @default(WAITING)
+  currentPhase          BekasaPhase          @default(ROLE_REVEAL)
+  roundNumber           Int                  @default(1)
+  categoryId            String               @default("football")
+  categoryNameAr        String               @default("لاعبو كرة قدم")
+  categoryNameEn        String               @default("Football Players")
+  secretWordAr          String               @default("")
+  secretWordEn          String               @default("")
+  candidateWordsJson    String               @default("[]")
+  bekasPlayerId         String?              // The assigned Bekas player ID for this round
+  questionQueueJson     String               @default("[]") // Array of { askerId, targetId, done }
+  currentQuestionIndex  Int                  @default(0)
+  bonusQueueJson        String               @default("[]") // Array of { askerId, targetId, skipped, done }
+  currentBonusIndex     Int                  @default(0)
+  roundResultSummary    String?
+  createdById           String
+  winnerId              String?              // Overall match winner (User ID)
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
+  startedAt             DateTime?
+  finishedAt            DateTime?
+  createdBy             User                 @relation("BekasaCreatedRooms", fields: [createdById], references: [id], onDelete: Cascade)
+  winner                User?                @relation("BekasaWonRooms", fields: [winnerId], references: [id], onDelete: SetNull)
+  players               BekasaRoomPlayer[]
+  actions               BekasaRoomAction[]
+}
+
+model BekasaRoomPlayer {
+  id                String             @id @default(cuid())
+  roomId            String
+  userId            String
+  displayName       String
+  score             Int                @default(0)
+  isHost            Boolean            @default(false)
+  isBekas           Boolean            @default(false)
+  roleRevealed      Boolean            @default(false)
+  isReady           Boolean            @default(false)
+  votedPlayerId     String?
+  bekasGuessedWord  String?
+  bekasGuessCorrect Boolean?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  room              BekasaRoom         @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  actions           BekasaRoomAction[] @relation("BekasaActionActor")
+
+  @@unique([roomId, userId])
+}
+
+model BekasaRoomAction {
+  id        String           @id @default(cuid())
+  roomId    String
+  actorId   String?
+  type      BekasaActionType
+  value     String?
+  details   String?
+  createdAt DateTime         @default(now())
+  room      BekasaRoom       @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  actor     BekasaRoomPlayer? @relation("BekasaActionActor", fields: [actorId], references: [id], onDelete: SetNull)
+}
