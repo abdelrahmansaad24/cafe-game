@@ -37,6 +37,18 @@ export async function Navbar() {
             >
               🎭 بكاسة (Bekasa)
             </Link>
+            <Link
+              href="/games/domino?lang=ar"
+              className="hover:text-zinc-900 dark:hover:text-zinc-100 transition"
+            >
+              🀄 دومينو (Domino)
+            </Link>
+            <Link
+              href="/games/uno?lang=ar"
+              className="hover:text-zinc-900 dark:hover:text-zinc-100 transition font-bold text-red-600 dark:text-red-400"
+            >
+              🎴 أونو (UNO)
+            </Link>
           </nav>
         </div>
 

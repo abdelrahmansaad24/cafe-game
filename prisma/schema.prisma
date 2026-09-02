@@ -107,6 +107,82 @@ enum BekasaActionType {
   LEAVE
 }
 
+enum DominoRoomVisibility {
+  PUBLIC
+  PRIVATE
+}
+
+enum DominoRoomStatus {
+  WAITING
+  PLAYING
+  FINISHED
+}
+
+enum DominoGameMode {
+  SOLO
+  TEAMS
+}
+
+enum DominoTeam {
+  TEAM_A
+  TEAM_B
+}
+
+enum DominoPhase {
+  PLAYING
+  ROUND_OVER
+  FINISHED
+}
+
+enum DominoActionType {
+  JOIN
+  START_ROUND
+  PLAY_TILE
+  DRAW_TILE
+  PASS_TURN
+  NEXT_ROUND
+  REPLAY
+  LEAVE
+}
+
+enum UnoRoomVisibility {
+  PUBLIC
+  PRIVATE
+}
+
+enum UnoRoomStatus {
+  WAITING
+  PLAYING
+  FINISHED
+}
+
+enum UnoPhase {
+  PLAYING
+  ROUND_OVER
+  FINISHED
+}
+
+enum UnoColor {
+  RED
+  BLUE
+  GREEN
+  YELLOW
+  WILD
+}
+
+enum UnoActionType {
+  JOIN
+  START_ROUND
+  PLAY_CARD
+  DRAW_CARD
+  PASS_TURN
+  CALL_UNO
+  CATCH_UNO
+  NEXT_ROUND
+  REPLAY
+  LEAVE
+}
+
 model User {
   id                        String                     @id @default(cuid())
   name                      String?
@@ -128,6 +204,12 @@ model User {
   bekasaRoomPlayers         BekasaRoomPlayer[]
   createdBekasaRooms        BekasaRoom[]               @relation("BekasaCreatedRooms")
   wonBekasaRooms            BekasaRoom[]               @relation("BekasaWonRooms")
+  dominoRoomPlayers         DominoRoomPlayer[]
+  createdDominoRooms        DominoRoom[]               @relation("DominoCreatedRooms")
+  wonDominoRooms            DominoRoom[]               @relation("DominoWonRooms")
+  unoRoomPlayers            UnoRoomPlayer[]
+  createdUnoRooms           UnoRoom[]                  @relation("UnoCreatedRooms")
+  wonUnoRooms               UnoRoom[]                  @relation("UnoWonRooms")
 }
 
 model Account {
@@ -363,4 +445,140 @@ model BekasaRoomAction {
   createdAt DateTime         @default(now())
   room      BekasaRoom       @relation(fields: [roomId], references: [id], onDelete: Cascade)
   actor     BekasaRoomPlayer? @relation("BekasaActionActor", fields: [actorId], references: [id], onDelete: SetNull)
+}
+
+// ----------------------------------------------------
+// Game 4: دومينو (Domino / Classic Draw & Block)
+// ----------------------------------------------------
+
+model DominoRoom {
+  id                  String               @id @default(cuid())
+  roomCode            String               @unique
+  title               String
+  visibility          DominoRoomVisibility @default(PUBLIC)
+  passwordHash        String?
+  scoreLimit          Int                  @default(100) // Threshold points to win match (e.g. 50, 100, 150)
+  mode                DominoGameMode       @default(SOLO) // SOLO or TEAMS (2v2)
+  status              DominoRoomStatus     @default(WAITING)
+  currentPhase        DominoPhase          @default(PLAYING)
+  roundNumber         Int                  @default(1)
+  currentTurnPlayerId String?
+  firstTurnPlayerId   String?
+  leftEnd             Int?
+  rightEnd            Int?
+  boardTilesJson      String               @default("[]") // Array of { tile: [number, number], playedSide: "LEFT"|"RIGHT", reversed: boolean }
+  boneyardJson        String               @default("[]") // Array of [number, number]
+  consecutivePasses   Int                  @default(0)    // When all active players pass consecutively -> Blocked (قفلة)
+  roundWinnerId       String?              // Player ID of round winner
+  winningTeam         DominoTeam?          // If TEAMS mode
+  roundResultSummary  String?
+  createdById         String
+  winnerId            String?              // Overall match winner (User ID)
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  startedAt           DateTime?
+  finishedAt          DateTime?
+  createdBy           User                 @relation("DominoCreatedRooms", fields: [createdById], references: [id], onDelete: Cascade)
+  winner              User?                @relation("DominoWonRooms", fields: [winnerId], references: [id], onDelete: SetNull)
+  players             DominoRoomPlayer[]
+  actions             DominoRoomAction[]
+}
+
+model DominoRoomPlayer {
+  id           String             @id @default(cuid())
+  roomId       String
+  userId       String
+  displayName  String
+  seatIndex    Int                @default(0) // 0 to 3
+  team         DominoTeam?        // TEAM_A or TEAM_B
+  score        Int                @default(0) // Match points accumulated
+  handJson     String             @default("[]") // Array of [number, number]
+  tilesCount   Int                @default(0)
+  isHost       Boolean            @default(false)
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+  room         DominoRoom         @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user         User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  actions      DominoRoomAction[] @relation("DominoActionActor")
+
+  @@unique([roomId, userId])
+}
+
+model DominoRoomAction {
+  id        String           @id @default(cuid())
+  roomId    String
+  actorId   String?
+  type      DominoActionType
+  value     String?
+  details   String?
+  createdAt DateTime         @default(now())
+  room      DominoRoom       @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  actor     DominoRoomPlayer? @relation("DominoActionActor", fields: [actorId], references: [id], onDelete: SetNull)
+}
+
+// ----------------------------------------------------
+// Game 5: أونو (UNO Card Game)
+// ----------------------------------------------------
+
+model UnoRoom {
+  id                    String            @id @default(cuid())
+  roomCode              String            @unique
+  title                 String
+  visibility            UnoRoomVisibility @default(PUBLIC)
+  passwordHash          String?
+  scoreLimit            Int               @default(250) // Match points threshold to win
+  status                UnoRoomStatus     @default(WAITING)
+  currentPhase          UnoPhase          @default(PLAYING)
+  roundNumber           Int               @default(1)
+  currentTurnPlayerId   String?
+  direction             Int               @default(1) // 1: clockwise, -1: counter-clockwise
+  activeColor           UnoColor          @default(RED)
+  topCardJson           String            @default("{}") // The card on top of discard pile
+  drawDeckJson          String            @default("[]") // Remaining cards in draw pile
+  discardPileJson       String            @default("[]") // Played cards history
+  drawCardDrawnThisTurn Boolean           @default(false)
+  roundWinnerId         String?
+  roundResultSummary    String?
+  createdById           String
+  winnerId              String?           // Overall match champion (User ID)
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+  startedAt             DateTime?
+  finishedAt            DateTime?
+  createdBy             User              @relation("UnoCreatedRooms", fields: [createdById], references: [id], onDelete: Cascade)
+  winner                User?             @relation("UnoWonRooms", fields: [winnerId], references: [id], onDelete: SetNull)
+  players               UnoRoomPlayer[]
+  actions               UnoRoomAction[]
+}
+
+model UnoRoomPlayer {
+  id           String          @id @default(cuid())
+  roomId       String
+  userId       String
+  displayName  String
+  seatIndex    Int             @default(0) // 0 to 7
+  score        Int             @default(0) // Accumulated points
+  handJson     String          @default("[]") // UnoCard[]
+  cardsCount   Int             @default(0)
+  hasCalledUno Boolean         @default(false)
+  isHost       Boolean         @default(false)
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  room         UnoRoom         @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  actions      UnoRoomAction[] @relation("UnoActionActor")
+
+  @@unique([roomId, userId])
+}
+
+model UnoRoomAction {
+  id        String         @id @default(cuid())
+  roomId    String
+  actorId   String?
+  type      UnoActionType
+  value     String?
+  details   String?
+  createdAt DateTime       @default(now())
+  room      UnoRoom        @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  actor     UnoRoomPlayer? @relation("UnoActionActor", fields: [actorId], references: [id], onDelete: SetNull)
 }
