@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { ScrewCardView } from "@/components/screw-card";
+import { MobileTableRotation } from "@/components/mobile-table-rotation";
 import {
   calculateGridPoints,
   SCREW_ACTION_DETAILS,
@@ -403,6 +404,7 @@ export default function ScrewRoomClient({ roomCode }: { roomCode: string }) {
     isMatch: boolean;
     message: string;
   } | null>(null);
+  const [isTableRotated, setIsTableRotated] = useState(false);
 
   const links = useMemo(
     () => ({
@@ -996,7 +998,19 @@ export default function ScrewRoomClient({ roomCode }: { roomCode: string }) {
 
       {/* CASINO FELT TABLE BOARD (DRAW DECK, DISCARD PILE, DRAWN CARD, ACTIONS) */}
       {room.status !== "WAITING" && (
-        <section className="relative rounded-3xl border-4 border-amber-950/40 bg-gradient-to-br from-amber-950 via-stone-950 to-neutral-950 p-6 shadow-2xl overflow-hidden min-h-[380px] flex flex-col justify-between">
+        <>
+          <MobileTableRotation
+            lang={lang}
+            isRotated={isTableRotated}
+            onToggleRotate={() => setIsTableRotated(!isTableRotated)}
+            gameName="Screw"
+          />
+
+          <section
+            className={`relative rounded-3xl border-4 border-amber-950/40 bg-gradient-to-br from-amber-950 via-stone-950 to-neutral-950 p-4 sm:p-6 shadow-2xl overflow-hidden min-h-[380px] flex flex-col justify-between transition-all duration-300 ${
+              isTableRotated ? "table-force-landscape" : ""
+            }`}
+          >
           {/* Top Opponents Area */}
           <div className="flex flex-wrap items-center justify-center gap-6 z-10 border-b border-white/10 pb-4">
             {room.players
@@ -1183,6 +1197,7 @@ export default function ScrewRoomClient({ roomCode }: { roomCode: string }) {
             </div>
           )}
         </section>
+        </>
       )}
 
       {/* SECRET CARD PEEK INSPECTION MODAL */}

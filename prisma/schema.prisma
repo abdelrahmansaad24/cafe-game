@@ -264,6 +264,9 @@ model User {
   sabahoRoomPlayers         SabahoRoomPlayer[]
   createdSabahoRooms        SabahoRoom[]               @relation("SabahoCreatedRooms")
   wonSabahoRooms            SabahoRoom[]               @relation("SabahoWonRooms")
+  bankRoomPlayers           BankRoomPlayer[]
+  createdBankRooms          BankRoom[]                 @relation("BankCreatedRooms")
+  wonBankRooms              BankRoom[]                 @relation("BankWonRooms")
 }
 
 model Account {
@@ -1110,6 +1113,113 @@ model SabahoRoomAction {
   room      SabahoRoom        @relation(fields: [roomId], references: [id], onDelete: Cascade)
   actor     SabahoRoomPlayer? @relation("SabahoActionActor", fields: [actorId], references: [id], onDelete: SetNull)
 }
+
+// ----------------------------------------------------
+// BANK EL HAZZ (بنك الحظ / MONOPOLY)
+// ----------------------------------------------------
+
+enum BankRoomVisibility {
+  PUBLIC
+  PRIVATE
+}
+
+enum BankRoomStatus {
+  WAITING
+  PLAYING
+  FINISHED
+}
+
+enum BankPhase {
+  WAITING_FOR_ROLL
+  TILE_ACTION
+  JAIL_DECISION
+  TURN_END
+  FINISHED
+}
+
+enum BankActionType {
+  JOIN
+  START
+  ROLL_DICE
+  BUY_PROPERTY
+  PASS_PROPERTY
+  PAY_RENT
+  BUILD_HOUSE
+  SELL_HOUSE
+  MORTGAGE_PROPERTY
+  UNMORTGAGE_PROPERTY
+  PAY_JAIL_FINE
+  USE_JAIL_CARD
+  DRAW_LUCK_CARD
+  END_TURN
+  DECLARE_BANKRUPTCY
+  REPLAY
+  LEAVE
+}
+
+model BankRoom {
+  id                  String             @id @default(cuid())
+  roomCode            String             @unique
+  title               String             @default("بنك الحظ")
+  visibility          BankRoomVisibility @default(PUBLIC)
+  status              BankRoomStatus     @default(WAITING)
+  passwordHash        String?
+  createdById         String
+  currentPhase        BankPhase          @default(WAITING_FOR_ROLL)
+  currentTurnPlayerId String?
+  dice1               Int?
+  dice2               Int?
+  doublesCount        Int                @default(0)
+  lastRollWasDoubles  Boolean            @default(false)
+  propertiesStateJson String             @default("{}") // propertyId -> { ownerId, houses, isMortgaged }
+  winnerPlayerId      String?
+  roundNumber         Int                @default(1)
+  startedAt           DateTime?
+  finishedAt          DateTime?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  createdBy           User               @relation("BankCreatedRooms", fields: [createdById], references: [id], onDelete: Cascade)
+  winner              User?              @relation("BankWonRooms", fields: [winnerPlayerId], references: [id], onDelete: SetNull)
+  players             BankRoomPlayer[]
+  actions             BankRoomAction[]
+}
+
+model BankRoomPlayer {
+  id            String           @id @default(cuid())
+  roomId        String
+  userId        String
+  displayName   String
+  seatIndex     Int              @default(0)
+  money         Int              @default(1500)
+  position      Int              @default(0) // 0 - 39
+  inJail        Boolean          @default(false)
+  jailTurns     Int              @default(0)
+  jailFreeCards Int              @default(0)
+  isBankrupt    Boolean          @default(false)
+  isHost        Boolean          @default(false)
+  avatar        String           @default("🚗")
+  color         String           @default("#f59e0b")
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  room          BankRoom         @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user          User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  actions       BankRoomAction[] @relation("BankActionActor")
+
+  @@unique([roomId, userId])
+}
+
+model BankRoomAction {
+  id        String          @id @default(cuid())
+  roomId    String
+  actorId   String?
+  type      BankActionType
+  value     String?
+  details   String?
+  createdAt DateTime        @default(now())
+  room      BankRoom        @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  actor     BankRoomPlayer? @relation("BankActionActor", fields: [actorId], references: [id], onDelete: SetNull)
+}
+
 
 
 

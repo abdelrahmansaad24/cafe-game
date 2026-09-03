@@ -55,6 +55,12 @@ export async function Navbar() {
             >
               🔩 سكرو (Screw)
             </Link>
+            <Link
+              href="/games/bank?lang=ar"
+              className="hover:text-zinc-900 dark:hover:text-zinc-100 transition font-bold text-yellow-600 dark:text-yellow-400"
+            >
+              🎲 بنك الحظ
+            </Link>
           </nav>
         </div>
 

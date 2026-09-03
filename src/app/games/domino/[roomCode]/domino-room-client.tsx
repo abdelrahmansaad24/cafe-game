@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { PlayerBadge } from "@/components/player-badge";
 import { DominoTileView } from "@/components/domino-tile";
+import { MobileTableRotation } from "@/components/mobile-table-rotation";
 import {
   BoardTile,
   DominoTile,
@@ -267,6 +268,7 @@ export default function DominoRoomClient({ roomCode }: { roomCode: string }) {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [selectedTile, setSelectedTile] = useState<DominoTile | null>(null);
+  const [isTableRotated, setIsTableRotated] = useState(false);
 
   const links = useMemo(
     () => ({
@@ -584,34 +586,46 @@ export default function DominoRoomClient({ roomCode }: { roomCode: string }) {
 
       {/* ACTIVE DOMINO FELT TABLE BOARD */}
       {room.status !== "WAITING" && (
-        <section className="relative rounded-3xl border-4 border-amber-950/40 bg-gradient-to-br from-emerald-900 via-emerald-950 to-stone-900 p-6 shadow-2xl overflow-hidden min-h-[320px] flex flex-col justify-between">
-          {/* Top Board Info & Boneyard status */}
-          <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-emerald-100 font-medium z-10">
-            <div className="flex items-center gap-2">
-              <span className="rounded-xl bg-black/40 backdrop-blur-md px-3 py-1.5 border border-white/10">
-                🀄 {t.boneyard}: <strong className="font-mono font-bold text-amber-300">{room.boneyardCount}</strong>
-              </span>
+        <>
+          <MobileTableRotation
+            lang={lang}
+            isRotated={isTableRotated}
+            onToggleRotate={() => setIsTableRotated(!isTableRotated)}
+            gameName="Domino"
+          />
+
+          <section
+            className={`relative rounded-3xl border-4 border-amber-950/40 bg-gradient-to-br from-emerald-900 via-emerald-950 to-stone-900 p-4 sm:p-6 shadow-2xl overflow-hidden min-h-[320px] flex flex-col justify-between transition-all duration-300 ${
+              isTableRotated ? "table-force-landscape" : ""
+            }`}
+          >
+            {/* Top Board Info & Boneyard status */}
+            <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-emerald-100 font-medium z-10">
+              <div className="flex items-center gap-2">
+                <span className="rounded-xl bg-black/40 backdrop-blur-md px-3 py-1.5 border border-white/10">
+                  🀄 {t.boneyard}: <strong className="font-mono font-bold text-amber-300">{room.boneyardCount}</strong>
+                </span>
+              </div>
+
+              {/* Open Ends Badges */}
+              <div className="flex items-center gap-2">
+                <span className="rounded-xl bg-black/40 backdrop-blur-md px-3 py-1.5 border border-white/10 flex items-center gap-1.5">
+                  <span className="opacity-75">{t.leftEndBadge}:</span>
+                  <strong className="font-mono text-base font-black text-amber-400">
+                    {room.leftEnd !== null ? room.leftEnd : "—"}
+                  </strong>
+                </span>
+                <span className="rounded-xl bg-black/40 backdrop-blur-md px-3 py-1.5 border border-white/10 flex items-center gap-1.5">
+                  <span className="opacity-75">{t.rightEndBadge}:</span>
+                  <strong className="font-mono text-base font-black text-amber-400">
+                    {room.rightEnd !== null ? room.rightEnd : "—"}
+                  </strong>
+                </span>
+              </div>
             </div>
 
-            {/* Open Ends Badges */}
-            <div className="flex items-center gap-2">
-              <span className="rounded-xl bg-black/40 backdrop-blur-md px-3 py-1.5 border border-white/10 flex items-center gap-1.5">
-                <span className="opacity-75">{t.leftEndBadge}:</span>
-                <strong className="font-mono text-base font-black text-amber-400">
-                  {room.leftEnd !== null ? room.leftEnd : "—"}
-                </strong>
-              </span>
-              <span className="rounded-xl bg-black/40 backdrop-blur-md px-3 py-1.5 border border-white/10 flex items-center gap-1.5">
-                <span className="opacity-75">{t.rightEndBadge}:</span>
-                <strong className="font-mono text-base font-black text-amber-400">
-                  {room.rightEnd !== null ? room.rightEnd : "—"}
-                </strong>
-              </span>
-            </div>
-          </div>
-
-          {/* Played Tiles Chain on Felt Table */}
-          <div className="my-6 py-4 px-2 overflow-x-auto flex items-center justify-start sm:justify-center gap-2 scrollbar-thin scrollbar-thumb-white/20 min-h-[90px]">
+            {/* Played Tiles Chain on Felt Table */}
+            <div className="my-4 sm:my-6 py-4 px-2 overflow-x-auto no-scrollbar flex items-center justify-start sm:justify-center gap-2 min-h-[90px]">
             {room.boardTiles.length === 0 ? (
               selfPlayer.isMyTurn && selectedTile ? (
                 <button
@@ -703,6 +717,7 @@ export default function DominoRoomClient({ roomCode }: { roomCode: string }) {
               })}
           </div>
         </section>
+        </>
       )}
 
       {/* PLAYER'S HAND & TURN CONTROLS TRAY */}

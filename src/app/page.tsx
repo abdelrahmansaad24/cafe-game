@@ -293,6 +293,33 @@ export default async function Home() {
             </Link>
           </div>
         </div>
+
+        {/* Bank El Hazz Card */}
+        <div className="group relative flex flex-col justify-between rounded-3xl border border-zinc-200 dark:border-zinc-800 bg-white/80 dark:bg-zinc-900/80 p-5 shadow-sm transition hover:shadow-md hover:border-amber-500/30">
+          <div>
+            <div className="flex items-center justify-between">
+              <span className="text-3xl">🎲</span>
+              <span className="rounded-full bg-amber-500/10 px-2.5 py-0.5 text-[10px] font-bold text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                2-6 Players
+              </span>
+            </div>
+            <h2 className="mt-3 text-base font-bold text-zinc-900 dark:text-zinc-50 group-hover:text-amber-600 transition">
+              بنك الحظ (Bank El Hazz)
+            </h2>
+            <p className="mt-1.5 text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed">
+              The classic Arab World Monopoly! Famous Arab capitals, iconic Egyptian cities, building houses and hotels, and screen rotation!
+            </p>
+          </div>
+
+          <div className="mt-5">
+            <Link
+              href="/games/bank?lang=ar"
+              className="block w-full text-center rounded-xl bg-gradient-to-r from-amber-600 via-yellow-600 to-emerald-600 px-3 py-2 text-xs font-bold text-white hover:opacity-95 transition shadow-md shadow-amber-600/20"
+            >
+              العب بنك الحظ 🎲
+            </Link>
+          </div>
+        </div>
       </div>
 
       {/* Auth Status & Quick Actions */}

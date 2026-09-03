@@ -38,3 +38,29 @@ body {
   border: 1px solid var(--border);
   backdrop-filter: blur(12px);
 }
+
+/* Hide scrollbars cleanly across Chrome, Safari, Edge, Firefox */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Rotated Table Mode for Mobile in Portrait */
+.table-force-landscape {
+  transform: rotate(90deg);
+  transform-origin: center center;
+  width: 100vh !important;
+  max-width: 100vh !important;
+  height: 100vw !important;
+  position: fixed !important;
+  top: 50% !important;
+  left: 50% !important;
+  margin-top: -50vw !important;
+  margin-left: -50vh !important;
+  z-index: 50;
+  overflow: hidden !important;
+}
+

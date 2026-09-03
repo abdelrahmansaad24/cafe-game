@@ -211,6 +211,25 @@ export default async function DashboardPage() {
             Play صباحو تحدي →
           </Link>
         </div>
+
+        {/* Bank El Hazz Card */}
+        <div className="flex flex-col justify-between rounded-3xl border border-zinc-200 dark:border-zinc-800 bg-white/90 dark:bg-zinc-900/90 p-5 shadow-sm">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-2xl">🎲</span>
+              <h2 className="text-base font-bold text-zinc-900 dark:text-zinc-50">بنك الحظ (Bank El Hazz)</h2>
+            </div>
+            <p className="mt-2 text-xs text-zinc-600 dark:text-zinc-400">
+              The classic Arab World Monopoly! Arab capitals, Egyptian iconic cities, building houses and hotels, and screen rotation.
+            </p>
+          </div>
+          <Link
+            href="/games/bank?lang=ar"
+            className="mt-5 rounded-xl bg-gradient-to-r from-amber-600 via-yellow-600 to-emerald-600 px-3 py-2 text-center text-xs font-bold text-white hover:opacity-95 transition shadow-md shadow-amber-600/20"
+          >
+            Play بنك الحظ (Bank El Hazz) →
+          </Link>
+        </div>
       </div>
     </main>
   );

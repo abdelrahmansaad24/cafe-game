@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { UnoCardView } from "@/components/uno-card";
+import { MobileTableRotation } from "@/components/mobile-table-rotation";
 import {
   isCardPlayable,
   UnoCard,
@@ -277,6 +278,7 @@ export default function UnoRoomClient({ roomCode }: { roomCode: string }) {
   const [busy, setBusy] = useState(false);
   const [wildCardPending, setWildCardPending] = useState<UnoCard | null>(null);
   const [unoShoutActive, setUnoShoutActive] = useState(false);
+  const [isTableRotated, setIsTableRotated] = useState(false);
 
   const links = useMemo(
     () => ({
@@ -594,7 +596,19 @@ export default function UnoRoomClient({ roomCode }: { roomCode: string }) {
 
       {/* ACTIVE CASINO FELT UNO TABLE */}
       {room.status !== "WAITING" && (
-        <section className="relative rounded-3xl border-4 border-amber-950/40 bg-gradient-to-br from-red-950 via-zinc-950 to-neutral-950 p-6 shadow-2xl overflow-hidden min-h-[380px] flex flex-col justify-between">
+        <>
+          <MobileTableRotation
+            lang={lang}
+            isRotated={isTableRotated}
+            onToggleRotate={() => setIsTableRotated(!isTableRotated)}
+            gameName="UNO"
+          />
+
+          <section
+            className={`relative rounded-3xl border-4 border-amber-950/40 bg-gradient-to-br from-red-950 via-zinc-950 to-neutral-950 p-4 sm:p-6 shadow-2xl overflow-hidden min-h-[380px] flex flex-col justify-between transition-all duration-300 ${
+              isTableRotated ? "table-force-landscape" : ""
+            }`}
+          >
           {/* Top Bar: Active Color & Turn Direction */}
           <div className="flex flex-wrap items-center justify-between gap-3 text-xs font-medium z-10">
             {/* Active Color Badge */}
@@ -704,6 +718,7 @@ export default function UnoRoomClient({ roomCode }: { roomCode: string }) {
               })}
           </div>
         </section>
+        </>
       )}
 
       {/* WILD COLOR PICKER MODAL */}
@@ -799,7 +814,7 @@ export default function UnoRoomClient({ roomCode }: { roomCode: string }) {
           </div>
 
           {/* Cards in Hand */}
-          <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2.5 py-2 overflow-x-auto">
+          <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2.5 py-2 overflow-x-auto no-scrollbar">
             {selfPlayer.hand.map((card) => {
               const playable =
                 selfPlayer.isMyTurn && isCardPlayable(card, room.activeColor, room.topCard);

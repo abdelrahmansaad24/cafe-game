@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { PlayingCard } from "@/components/playing-card";
+import { MobileTableRotation } from "@/components/mobile-table-rotation";
 import {
   canPlayCard,
   EstimationCard,
@@ -246,6 +247,7 @@ export default function EstimationRoomClient({ roomCode }: { roomCode: string })
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [isTableRotated, setIsTableRotated] = useState(false);
 
   const links = useMemo(
     () => ({
@@ -640,7 +642,19 @@ export default function EstimationRoomClient({ roomCode }: { roomCode: string })
 
       {/* ACTIVE CARD FELT TABLE LAYOUT */}
       {room.status === "PLAYING" && (
-        <section className="relative rounded-3xl border-4 border-emerald-800/80 bg-gradient-to-b from-emerald-900 via-emerald-800 to-emerald-950 p-4 sm:p-8 shadow-2xl text-white min-h-[480px] flex flex-col justify-between overflow-hidden">
+        <>
+          <MobileTableRotation
+            lang={lang}
+            isRotated={isTableRotated}
+            onToggleRotate={() => setIsTableRotated(!isTableRotated)}
+            gameName="Estimation"
+          />
+
+          <section
+            className={`relative rounded-3xl border-4 border-emerald-800/80 bg-gradient-to-b from-emerald-900 via-emerald-800 to-emerald-950 p-4 sm:p-8 shadow-2xl text-white min-h-[480px] flex flex-col justify-between overflow-hidden transition-all duration-300 ${
+              isTableRotated ? "table-force-landscape" : ""
+            }`}
+          >
           {/* Subtle felt texture overlay */}
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-emerald-700/20 via-transparent to-black/40 pointer-events-none" />
 
@@ -739,7 +753,7 @@ export default function EstimationRoomClient({ roomCode }: { roomCode: string })
             )}
 
             {/* YOUR HAND OF CARDS */}
-            <div className="flex flex-wrap justify-center gap-1 sm:gap-2 max-w-full overflow-x-auto pb-2 px-2">
+            <div className="flex flex-wrap justify-center gap-1 sm:gap-2 max-w-full overflow-x-auto no-scrollbar pb-2 px-2">
               {myHand.map((card) => {
                 const isPlayable =
                   isTrickPlaying &&
@@ -760,6 +774,7 @@ export default function EstimationRoomClient({ roomCode }: { roomCode: string })
             </div>
           </div>
         </section>
+        </>
       )}
 
       {/* ROUND OVER / MATCH FINISHED CONTROLS */}
