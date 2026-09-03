@@ -27,8 +27,8 @@ const developmentFallbacks = {
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   DATABASE_URL: z.string().url().default(developmentFallbacks.DATABASE_URL),
-  DB_POOL_MAX: z.coerce.number().int().min(1).max(5).default(5),
-  DB_POOL_IDLE_TIMEOUT_MS: z.coerce.number().int().min(1000).default(10_000),
+  DB_POOL_MAX: z.coerce.number().int().min(1).max(5).default(1),
+  DB_POOL_IDLE_TIMEOUT_MS: z.coerce.number().int().min(1000).default(5_000),
   DB_POOL_CONNECTION_TIMEOUT_MS: z.coerce.number().int().min(1000).default(5_000),
   GEMINI_API_KEY: z.string().min(1).optional(),
   GEMINI_MODEL: z.string().min(1).default("gemini-flash-latest"),
@@ -48,8 +48,8 @@ const envSchema = z.object({
 const parsedEnv = envSchema.parse({
   NODE_ENV: process.env.NODE_ENV,
   DATABASE_URL: process.env.DATABASE_URL ?? developmentFallbacks.DATABASE_URL,
-  DB_POOL_MAX: process.env.DB_POOL_MAX ?? "5",
-  DB_POOL_IDLE_TIMEOUT_MS: process.env.DB_POOL_IDLE_TIMEOUT_MS ?? "10000",
+  DB_POOL_MAX: process.env.DB_POOL_MAX ?? "1",
+  DB_POOL_IDLE_TIMEOUT_MS: process.env.DB_POOL_IDLE_TIMEOUT_MS ?? "5000",
   DB_POOL_CONNECTION_TIMEOUT_MS: process.env.DB_POOL_CONNECTION_TIMEOUT_MS ?? "5000",
   GEMINI_API_KEY: process.env.GEMINI_API_KEY,
   GEMINI_MODEL: process.env.GEMINI_MODEL ?? "gemini-flash-latest",
