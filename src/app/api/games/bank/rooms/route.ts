@@ -7,6 +7,7 @@ const createRoomSchema = z.object({
   title: z.string().trim().min(2).max(80),
   visibility: z.enum(["PUBLIC", "PRIVATE"]),
   password: z.string().trim().min(4).max(64).optional(),
+  turnTimerSeconds: z.coerce.number().int().min(0).max(180).default(30),
 });
 
 export async function GET() {
@@ -49,6 +50,7 @@ export async function POST(request: Request) {
       title: parsed.data.title,
       visibility: parsed.data.visibility,
       password: parsed.data.password,
+      turnTimerSeconds: parsed.data.turnTimerSeconds,
     });
 
     return NextResponse.json({ roomCode: room.roomCode }, { status: 201 });

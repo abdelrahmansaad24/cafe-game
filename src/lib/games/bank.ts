@@ -86,12 +86,14 @@ export async function createBankRoom({
   password,
   hostUserId,
   hostDisplayName,
+  turnTimerSeconds = 30,
 }: {
   title: string;
   visibility: "PUBLIC" | "PRIVATE";
   password?: string;
   hostUserId: string;
   hostDisplayName: string;
+  turnTimerSeconds?: number;
 }) {
   let roomCode = generateRoomCode();
   while (await prisma.bankRoom.findUnique({ where: { roomCode } })) {
@@ -106,6 +108,7 @@ export async function createBankRoom({
       passwordHash: password ? password.trim() : null,
       createdById: hostUserId,
       status: "WAITING",
+      turnTimerSeconds: typeof turnTimerSeconds === "number" ? Math.max(0, turnTimerSeconds) : 30,
       players: {
         create: {
           userId: hostUserId,
@@ -116,6 +119,7 @@ export async function createBankRoom({
           color: PLAYER_COLORS[0],
           money: 1500,
           position: 0,
+          lastActiveAt: new Date(),
         },
       },
     },
@@ -135,6 +139,28 @@ export async function createBankRoom({
 }
 
 export async function listPublicBankRooms() {
+  // Prune abandoned rooms where all players have been inactive for > 45s
+  try {
+    const cutoff = new Date(Date.now() - 45000);
+    const staleRooms = await prisma.bankRoom.findMany({
+      where: {
+        players: {
+          none: {
+            lastActiveAt: { gte: cutoff },
+          },
+        },
+      },
+      select: { id: true },
+    });
+    if (staleRooms.length > 0) {
+      await prisma.bankRoom.deleteMany({
+        where: { id: { in: staleRooms.map((r) => r.id) } },
+      });
+    }
+  } catch {
+    // Ignore cleanup error
+  }
+
   return prisma.bankRoom.findMany({
     where: {
       visibility: "PUBLIC",
@@ -166,14 +192,39 @@ export async function getBankRoomState(roomCode: string, currentUserId?: string)
 
   if (!room) return null;
 
+  const now = Date.now();
+  const selfPlayer = room.players.find((p) => p.userId === currentUserId);
+
+  // Update heartbeat for the polling player
+  if (selfPlayer) {
+    await prisma.bankRoomPlayer
+      .update({
+        where: { id: selfPlayer.id },
+        data: { lastActiveAt: new Date() },
+      })
+      .catch(() => undefined);
+  }
+
+  // Check if ALL players have closed their tabs / left (no active polls for > 35s)
+  const ACTIVE_TIMEOUT_MS = 35000;
+  const anyActivePlayer = room.players.some((p) => {
+    // Current poller is active right now
+    if (selfPlayer && p.id === selfPlayer.id) return true;
+    return now - new Date(p.lastActiveAt).getTime() < ACTIVE_TIMEOUT_MS;
+  });
+
+  if (!anyActivePlayer && room.players.length > 0) {
+    // Delete abandoned room automatically
+    await prisma.bankRoom.delete({ where: { id: room.id } }).catch(() => undefined);
+    return null;
+  }
+
   let properties: PropertiesStateMap = {};
   try {
     properties = JSON.parse(room.propertiesStateJson || "{}");
   } catch {
     properties = {};
   }
-
-  const selfPlayer = room.players.find((p) => p.userId === currentUserId);
 
   return {
     room: {
@@ -190,6 +241,8 @@ export async function getBankRoomState(roomCode: string, currentUserId?: string)
       lastRollWasDoubles: room.lastRollWasDoubles,
       winnerPlayerId: room.winnerPlayerId,
       roundNumber: room.roundNumber,
+      turnTimerSeconds: room.turnTimerSeconds,
+      turnStartedAt: room.turnStartedAt ? room.turnStartedAt.toISOString() : null,
       properties,
     },
     players: room.players.map((p) => ({
@@ -293,13 +346,14 @@ export async function leaveBankRoom({
     include: { players: true },
   });
 
-  if (!room) return;
+  if (!room) return { ok: true, deleted: true };
   const player = room.players.find((p) => p.userId === userId);
-  if (!player) return;
+  if (!player) return { ok: true, deleted: false };
 
-  if (room.players.length === 1) {
-    await prisma.bankRoom.delete({ where: { id: room.id } });
-    return;
+  // If this was the only player in the room, delete room immediately
+  if (room.players.length <= 1) {
+    await prisma.bankRoom.delete({ where: { id: room.id } }).catch(() => undefined);
+    return { ok: true, deleted: true };
   }
 
   await prisma.$transaction(async (tx) => {
@@ -322,10 +376,13 @@ export async function leaveBankRoom({
         data: {
           currentTurnPlayerId: remaining[0]?.id || null,
           currentPhase: "WAITING_FOR_ROLL",
+          turnStartedAt: new Date(),
         },
       });
     }
   });
+
+  return { ok: true, deleted: false };
 }
 
 export async function startBankGame({
@@ -372,6 +429,7 @@ export async function startBankGame({
         status: "PLAYING",
         currentPhase: "WAITING_FOR_ROLL",
         currentTurnPlayerId: starter.id,
+        turnStartedAt: new Date(),
         propertiesStateJson: "{}",
         roundNumber: 1,
         startedAt: new Date(),
@@ -1223,7 +1281,10 @@ export async function endTurnBankAction({
     await prisma.$transaction(async (tx) => {
       await tx.bankRoom.update({
         where: { id: room.id },
-        data: { currentPhase: "WAITING_FOR_ROLL" },
+        data: {
+          currentPhase: "WAITING_FOR_ROLL",
+          turnStartedAt: new Date(),
+        },
       });
 
       await tx.bankRoomAction.create({
@@ -1275,6 +1336,7 @@ export async function endTurnBankAction({
       data: {
         currentTurnPlayerId: nextPlayer.id,
         currentPhase: "WAITING_FOR_ROLL",
+        turnStartedAt: new Date(),
         doublesCount: 0,
         lastRollWasDoubles: false,
         dice1: null,

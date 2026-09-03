@@ -27,6 +27,8 @@ type RoomPayload = {
     lastRollWasDoubles: boolean;
     winnerPlayerId: string | null;
     roundNumber: number;
+    turnTimerSeconds: number;
+    turnStartedAt: string | null;
     properties: PropertiesStateMap;
   };
   players: {
@@ -259,6 +261,7 @@ export default function BankRoomClient({ roomCode }: { roomCode: string }) {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [timeLeft, setTimeLeft] = useState<number | null>(null);
 
   // Mobile screen rotation state
   const [isTableRotated, setIsTableRotated] = useState(false);
@@ -277,6 +280,81 @@ export default function BankRoomClient({ roomCode }: { roomCode: string }) {
     }),
     [lang, roomCode],
   );
+
+  // Auto-action timer effect
+  useEffect(() => {
+    if (
+      !roomData?.room ||
+      roomData.room.status !== "PLAYING" ||
+      !roomData.room.turnTimerSeconds ||
+      roomData.room.turnTimerSeconds <= 0
+    ) {
+      setTimeLeft(null);
+      return;
+    }
+
+    const timerLimit = roomData.room.turnTimerSeconds;
+    const turnStarted = roomData.room.turnStartedAt
+      ? new Date(roomData.room.turnStartedAt).getTime()
+      : Date.now();
+
+    const updateTimer = () => {
+      const elapsed = Math.floor((Date.now() - turnStarted) / 1000);
+      const remaining = Math.max(0, timerLimit - elapsed);
+      setTimeLeft(remaining);
+
+      if (remaining > 0 && remaining <= 5 && roomData.selfPlayer?.isMyTurn) {
+        playBankSound("dice");
+      }
+
+      // Auto-action on timeout if it's player's turn
+      if (remaining === 0 && roomData.selfPlayer?.isMyTurn && !busy) {
+        if (
+          roomData.room.currentPhase === "WAITING_FOR_ROLL" ||
+          roomData.room.currentPhase === "JAIL_DECISION"
+        ) {
+          sendAction("ROLL_DICE");
+        } else if (roomData.room.currentPhase === "TILE_ACTION") {
+          sendAction("PASS_PROPERTY");
+        } else if (roomData.room.currentPhase === "TURN_END") {
+          sendAction("END_TURN");
+        }
+      }
+    };
+
+    updateTimer();
+    const interval = setInterval(updateTimer, 1000);
+    return () => clearInterval(interval);
+  }, [
+    roomData?.room.turnStartedAt,
+    roomData?.room.turnTimerSeconds,
+    roomData?.room.status,
+    roomData?.room.currentPhase,
+    roomData?.selfPlayer?.isMyTurn,
+    busy,
+  ]);
+
+  // Tab close & leave beacon detection
+  useEffect(() => {
+    const handleTabClose = () => {
+      if (navigator.sendBeacon) {
+        navigator.sendBeacon(`/api/games/bank/rooms/${roomCode}/leave`);
+      } else {
+        fetch(`/api/games/bank/rooms/${roomCode}/leave`, {
+          method: "POST",
+          keepalive: true,
+        }).catch(() => undefined);
+      }
+    };
+
+    window.addEventListener("pagehide", handleTabClose);
+    window.addEventListener("beforeunload", handleTabClose);
+
+    return () => {
+      window.removeEventListener("pagehide", handleTabClose);
+      window.removeEventListener("beforeunload", handleTabClose);
+    };
+  }, [roomCode]);
 
   useEffect(() => {
     let running = true;
@@ -313,6 +391,13 @@ export default function BankRoomClient({ roomCode }: { roomCode: string }) {
       clearInterval(interval);
     };
   }, [roomCode]);
+
+  const onLeaveRoom = async () => {
+    if (confirm(lang === "ar" ? "هل أنت متأكد من مغادرة الطاولة؟" : "Leave this table?")) {
+      await fetch(`/api/games/bank/rooms/${roomCode}/leave`, { method: "POST" }).catch(() => undefined);
+      router.push(links.lobby);
+    }
+  };
 
   const sendAction = async (type: string, tileIndex?: number) => {
     if (busy) return;
@@ -518,8 +603,27 @@ export default function BankRoomClient({ roomCode }: { roomCode: string }) {
           </button>
         </div>
 
-        {/* Language switch */}
+        {/* Right Header Actions: Leave Table, Timer Indicator, Language */}
         <div className="flex items-center gap-2">
+          {room.turnTimerSeconds && room.turnTimerSeconds > 0 ? (
+            <span className="hidden sm:inline-flex items-center gap-1 font-mono text-xs font-bold bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20 px-2.5 py-1 rounded-xl">
+              ⏱️ {room.turnTimerSeconds}s
+            </span>
+          ) : (
+            <span className="hidden sm:inline-flex items-center gap-1 font-mono text-xs font-bold bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700 px-2.5 py-1 rounded-xl">
+              ⏱️ ♾️
+            </span>
+          )}
+
+          <button
+            type="button"
+            onClick={onLeaveRoom}
+            className="rounded-xl border border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-950/30 px-3 py-1 text-xs font-bold text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/50 transition cursor-pointer"
+          >
+            🚪 {lang === "ar" ? "مغادرة" : "Leave"}
+          </button>
+
+          {/* Language switch */}
           <Link
             href={links.ar}
             className={`rounded-lg px-2.5 py-1 text-xs font-bold ${
@@ -645,6 +749,23 @@ export default function BankRoomClient({ roomCode }: { roomCode: string }) {
                           <span>{currentTurnPlayer?.avatar}</span>
                           <span>{currentTurnPlayer?.displayName}</span>
                         </span>
+
+                        {/* Turn Timer Badge */}
+                        {room.turnTimerSeconds && room.turnTimerSeconds > 0 ? (
+                          <span
+                            className={`font-mono text-xs font-black px-2.5 py-0.5 rounded-full border transition-all ${
+                              timeLeft !== null && timeLeft <= 5
+                                ? "bg-red-500/30 text-red-300 border-red-500 animate-pulse font-extrabold"
+                                : "bg-amber-500/20 text-amber-300 border-amber-500/40"
+                            }`}
+                          >
+                            ⏱️ {timeLeft !== null ? `${timeLeft}s` : `${room.turnTimerSeconds}s`}
+                          </span>
+                        ) : (
+                          <span className="font-mono text-[10px] font-bold text-zinc-400 bg-white/5 px-2 py-0.5 rounded-full border border-white/10">
+                            ⏱️ ♾️
+                          </span>
+                        )}
                       </div>
 
                       {isMyTurn && (

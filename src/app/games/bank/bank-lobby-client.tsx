@@ -120,6 +120,7 @@ export default function BankLobbyClient() {
   const [title, setTitle] = useState(lang === "ar" ? "طاولة بنك الحظ" : "Bank El Hazz Table");
   const [visibility, setVisibility] = useState<"PUBLIC" | "PRIVATE">("PUBLIC");
   const [password, setPassword] = useState("");
+  const [turnTimerSeconds, setTurnTimerSeconds] = useState(30);
   const [creating, setCreating] = useState(false);
 
   const [joinCode, setJoinCode] = useState("");
@@ -172,6 +173,7 @@ export default function BankLobbyClient() {
           title,
           visibility,
           password: visibility === "PRIVATE" ? password : undefined,
+          turnTimerSeconds,
         }),
       });
 
@@ -343,6 +345,34 @@ export default function BankLobbyClient() {
                   />
                 </div>
               )}
+
+              <div>
+                <label className="block text-xs font-bold text-zinc-700 dark:text-zinc-300 mb-1">
+                  ⏱️ {lang === "ar" ? "مؤقت حركة اللاعب (لكل دور)" : "Player Turn Timer"}
+                </label>
+                <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5 text-xs font-bold">
+                  {[
+                    { sec: 15, label: lang === "ar" ? "١٥ ثانية" : "15s" },
+                    { sec: 30, label: lang === "ar" ? "٣٠ ثانية" : "30s" },
+                    { sec: 60, label: lang === "ar" ? "٦٠ ثانية" : "60s" },
+                    { sec: 90, label: lang === "ar" ? "٩٠ ثانية" : "90s" },
+                    { sec: 0, label: lang === "ar" ? "♾️ لا نهائي" : "♾️ Infinite" },
+                  ].map((item) => (
+                    <button
+                      key={item.sec}
+                      type="button"
+                      onClick={() => setTurnTimerSeconds(item.sec)}
+                      className={`rounded-xl py-2 px-1 text-center border transition ${
+                        turnTimerSeconds === item.sec
+                          ? "border-amber-500 bg-amber-500/20 text-amber-700 dark:text-amber-300 font-extrabold"
+                          : "border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400"
+                      }`}
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
               <button
                 type="submit"

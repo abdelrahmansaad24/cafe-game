@@ -1174,6 +1174,8 @@ model BankRoom {
   propertiesStateJson String             @default("{}") // propertyId -> { ownerId, houses, isMortgaged }
   winnerPlayerId      String?
   roundNumber         Int                @default(1)
+  turnTimerSeconds    Int                @default(30) // 0 = infinite, 15, 30, 45, 60, 90
+  turnStartedAt       DateTime?
   startedAt           DateTime?
   finishedAt          DateTime?
   createdAt           DateTime           @default(now())
@@ -1199,6 +1201,7 @@ model BankRoomPlayer {
   isHost        Boolean          @default(false)
   avatar        String           @default("🚗")
   color         String           @default("#f59e0b")
+  lastActiveAt  DateTime         @default(now())
   createdAt     DateTime         @default(now())
   updatedAt     DateTime         @updatedAt
   room          BankRoom         @relation(fields: [roomId], references: [id], onDelete: Cascade)
