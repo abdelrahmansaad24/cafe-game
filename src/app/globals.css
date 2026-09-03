@@ -64,3 +64,182 @@ body {
   overflow: hidden !important;
 }
 
+/* ========================================================================
+   FULLSCREEN IMMERSIVE GAME TABLE MODE
+   ======================================================================== */
+
+/* When active, hide the navbar and make body fill viewport with no scroll */
+html.game-fullscreen-mode {
+  overflow: hidden !important;
+}
+
+html.game-fullscreen-mode body {
+  overflow: hidden !important;
+  height: 100dvh !important;
+  max-height: 100dvh !important;
+}
+
+html.game-fullscreen-mode [data-navbar] {
+  display: none !important;
+}
+
+/* The game table itself */
+.game-table-root {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Top bar inside game table */
+.game-table-topbar {
+  flex-shrink: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* Center arena (flex-1 fills remaining space) */
+.game-table-arena {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+/* Bottom card dock */
+.game-table-dock {
+  flex-shrink: 0;
+  z-index: 10;
+  padding: 6px 8px 10px;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* Card dock hand: auto-sizing tiles */
+.card-dock-hand {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 4px;
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 2px;
+  scroll-snap-type: x proximity;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.card-dock-hand::-webkit-scrollbar {
+  display: none;
+}
+
+/* Card enter animation */
+@keyframes card-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(40px) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.card-enter {
+  animation: card-slide-up 0.25s ease-out both;
+}
+
+/* ========================================================================
+   SLIDE-OUT MENU DRAWER
+   ======================================================================== */
+
+.game-drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+
+.game-drawer-backdrop.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.game-drawer-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 61;
+  width: min(340px, 85vw);
+  background: rgba(10, 10, 14, 0.97);
+  border-left: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: -8px 0 40px rgba(0, 0, 0, 0.5);
+  transform: translateX(100%);
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+}
+
+[dir="rtl"] .game-drawer-panel {
+  right: auto;
+  left: 0;
+  border-left: none;
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  transform: translateX(-100%);
+  box-shadow: 8px 0 40px rgba(0, 0, 0, 0.5);
+}
+
+.game-drawer-panel.open {
+  transform: translateX(0);
+}
+
+/* Turn pulse glow effect */
+@keyframes turn-glow {
+  0%, 100% { box-shadow: 0 0 12px rgba(16, 185, 129, 0.3); }
+  50% { box-shadow: 0 0 24px rgba(16, 185, 129, 0.6); }
+}
+.turn-glow {
+  animation: turn-glow 1.5s ease-in-out infinite;
+}
+
+/* Subtle table felt texture overlay */
+.felt-texture::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(circle at 50% 50%, rgba(255,255,255,0.06) 0%, transparent 70%),
+    radial-gradient(circle at 80% 20%, rgba(255,255,255,0.04) 0%, transparent 50%),
+    radial-gradient(circle at 20% 80%, rgba(255,255,255,0.03) 0%, transparent 50%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Your-turn bottom dock highlight */
+@keyframes dock-pulse {
+  0%, 100% { border-color: rgba(16, 185, 129, 0.5); }
+  50% { border-color: rgba(16, 185, 129, 0.9); }
+}
+.dock-my-turn {
+  border-top: 2px solid rgba(16, 185, 129, 0.5);
+  animation: dock-pulse 2s ease-in-out infinite;
+}

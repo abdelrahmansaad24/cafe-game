@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { PlayerBadge } from "@/components/player-badge";
 import { DominoTileView } from "@/components/domino-tile";
 import { DominoSnakeBoard } from "@/components/domino-snake-board";
-import { MobileTableRotation } from "@/components/mobile-table-rotation";
+import { GameTableShell } from "@/components/game-table-shell";
 import {
   BoardTile,
   DominoTile,
@@ -269,7 +269,6 @@ export default function DominoRoomClient({ roomCode }: { roomCode: string }) {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [selectedTile, setSelectedTile] = useState<DominoTile | null>(null);
-  const [isTableRotated, setIsTableRotated] = useState(false);
 
   const links = useMemo(
     () => ({
@@ -422,7 +421,7 @@ export default function DominoRoomClient({ roomCode }: { roomCode: string }) {
     );
   }
 
-  if (error || !roomData) {
+  if (error && !roomData) {
     return (
       <main className="mx-auto w-full max-w-4xl px-6 py-12">
         <div className="rounded-3xl border border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-950/40 p-6 text-center">
@@ -437,6 +436,8 @@ export default function DominoRoomClient({ roomCode }: { roomCode: string }) {
       </main>
     );
   }
+
+  if (!roomData) return null;
 
   const room = roomData.room;
   const selfPlayer = roomData.selfPlayer;
@@ -465,98 +466,81 @@ export default function DominoRoomClient({ roomCode }: { roomCode: string }) {
   const canSelectedPlayLeft = selectedPlayability?.canPlayLeft ?? false;
   const canSelectedPlayRight = selectedPlayability?.canPlayRight ?? false;
 
-  return (
-    <main
-      className="mx-auto flex min-h-screen w-full max-w-5xl flex-col gap-5 px-4 sm:px-6 py-8"
-      dir={lang === "ar" ? "rtl" : "ltr"}
-    >
-      {/* Header Controls */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <Link
-            href={links.lobby}
-            className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3.5 py-1.5 text-xs font-semibold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition"
-          >
-            ← {t.back}
-          </Link>
-          <button
-            type="button"
-            onClick={onLeaveRoom}
-            className="rounded-xl border border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-950/40 px-3.5 py-1.5 text-xs font-semibold text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/60 transition cursor-pointer"
-          >
-            {t.leaveRoom}
-          </button>
-        </div>
-        <div className="flex items-center gap-1.5 text-xs font-medium">
-          <span className="text-zinc-500 dark:text-zinc-400">{t.language}:</span>
-          <Link
-            className={`rounded-lg border px-2.5 py-1 transition ${
-              lang === "en"
-                ? "border-emerald-600 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 font-bold"
-                : "border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800"
-            }`}
-            href={links.en}
-          >
-            EN
-          </Link>
-          <Link
-            className={`rounded-lg border px-2.5 py-1 transition ${
-              lang === "ar"
-                ? "border-emerald-600 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 font-bold"
-                : "border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800"
-            }`}
-            href={links.ar}
-          >
-            عربي
-          </Link>
-        </div>
-      </div>
-
-      {/* Main Table Banner & Score */}
-      <section className="rounded-3xl border border-zinc-200 dark:border-zinc-800/80 bg-white/90 dark:bg-zinc-900/90 p-5 sm:p-6 shadow-sm backdrop-blur-md">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-100 dark:border-zinc-800 pb-4">
-          <div>
-            <div className="flex items-center gap-2.5">
-              <span className="text-2xl">🀄</span>
-              <h1 className="text-xl sm:text-2xl font-extrabold text-zinc-900 dark:text-zinc-50">
-                {room.title}
-              </h1>
-            </div>
-            <p className="mt-1 font-mono text-xs text-zinc-500 dark:text-zinc-400">
-              {t.room}: <span className="font-bold text-emerald-600 dark:text-emerald-400">#{room.roomCode}</span>
-            </p>
+  // ==========================================
+  // WAITING / LOBBY STATE (standard page layout)
+  // ==========================================
+  if (room.status === "WAITING") {
+    return (
+      <main
+        className="mx-auto flex min-h-screen w-full max-w-5xl flex-col gap-5 px-4 sm:px-6 py-8"
+        dir={lang === "ar" ? "rtl" : "ltr"}
+      >
+        {/* Header Controls */}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <Link
+              href={links.lobby}
+              className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3.5 py-1.5 text-xs font-semibold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition"
+            >
+              ← {t.back}
+            </Link>
+            <button
+              type="button"
+              onClick={onLeaveRoom}
+              className="rounded-xl border border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-950/40 px-3.5 py-1.5 text-xs font-semibold text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/60 transition cursor-pointer"
+            >
+              {t.leaveRoom}
+            </button>
           </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-bold text-emerald-800 dark:text-emerald-200">
-              {room.mode === "TEAMS" ? "👥 Teams 2v2" : "👤 Solo"}
-            </span>
-            <span className="rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 px-3 py-1 text-xs font-bold text-zinc-800 dark:text-zinc-200">
-              {t.round} {room.roundNumber} · 🎯 {t.threshold}: {room.scoreLimit} pts
-            </span>
+          <div className="flex items-center gap-1.5 text-xs font-medium">
+            <span className="text-zinc-500 dark:text-zinc-400">{t.language}:</span>
+            <Link
+              className={`rounded-lg border px-2.5 py-1 transition ${
+                lang === "en"
+                  ? "border-emerald-600 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 font-bold"
+                  : "border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+              }`}
+              href={links.en}
+            >
+              EN
+            </Link>
+            <Link
+              className={`rounded-lg border px-2.5 py-1 transition ${
+                lang === "ar"
+                  ? "border-emerald-600 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 font-bold"
+                  : "border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+              }`}
+              href={links.ar}
+            >
+              عربي
+            </Link>
           </div>
         </div>
 
-        {/* Teams Match Scoreboard */}
-        {room.mode === "TEAMS" && (
-          <div className="mt-4 grid grid-cols-2 gap-3">
-            <div className="rounded-2xl border border-indigo-500/30 bg-indigo-500/10 p-3 text-center">
-              <p className="text-xs font-bold uppercase text-indigo-700 dark:text-indigo-300">{t.teamA}</p>
-              <p className="text-2xl font-extrabold text-indigo-950 dark:text-indigo-100 font-mono">
-                {room.teamAScore} <span className="text-xs font-normal opacity-70">/ {room.scoreLimit} pts</span>
+        {/* Lobby Card */}
+        <section className="rounded-3xl border border-zinc-200 dark:border-zinc-800/80 bg-white/90 dark:bg-zinc-900/90 p-5 sm:p-6 shadow-sm backdrop-blur-md">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-100 dark:border-zinc-800 pb-4">
+            <div>
+              <div className="flex items-center gap-2.5">
+                <span className="text-2xl">🀄</span>
+                <h1 className="text-xl sm:text-2xl font-extrabold text-zinc-900 dark:text-zinc-50">
+                  {room.title}
+                </h1>
+              </div>
+              <p className="mt-1 font-mono text-xs text-zinc-500 dark:text-zinc-400">
+                {t.room}: <span className="font-bold text-emerald-600 dark:text-emerald-400">#{room.roomCode}</span>
               </p>
             </div>
-            <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-3 text-center">
-              <p className="text-xs font-bold uppercase text-amber-700 dark:text-amber-300">{t.teamB}</p>
-              <p className="text-2xl font-extrabold text-amber-950 dark:text-amber-100 font-mono">
-                {room.teamBScore} <span className="text-xs font-normal opacity-70">/ {room.scoreLimit} pts</span>
-              </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-bold text-emerald-800 dark:text-emerald-200">
+                {room.mode === "TEAMS" ? "👥 Teams 2v2" : "👤 Solo"}
+              </span>
+              <span className="rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 px-3 py-1 text-xs font-bold text-zinc-800 dark:text-zinc-200">
+                🎯 {t.threshold}: {room.scoreLimit} pts
+              </span>
             </div>
           </div>
-        )}
 
-        {/* LOBBY / WAITING STATE */}
-        {room.status === "WAITING" && (
           <div className="mt-5 space-y-4 text-center py-6">
             <div className="mx-auto inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-500/10 text-3xl">
               🀄
@@ -582,380 +566,416 @@ export default function DominoRoomClient({ roomCode }: { roomCode: string }) {
               </div>
             )}
           </div>
-        )}
-      </section>
-
-      {/* ACTIVE DOMINO FELT TABLE BOARD & INTEGRATED PLAYER DOCK */}
-      {room.status !== "WAITING" && (
-        <>
-          <MobileTableRotation
-            lang={lang}
-            isRotated={isTableRotated}
-            onToggleRotate={() => setIsTableRotated(!isTableRotated)}
-            gameName="Domino"
-          />
-
-          <section
-            className={`relative rounded-3xl border-4 border-yellow-400/80 bg-gradient-to-b from-[#153a7f] via-[#1a449c] to-[#0d2252] shadow-2xl overflow-hidden flex flex-col justify-between transition-all duration-300 w-full h-[calc(100dvh-100px)] min-h-[520px] max-h-[840px] select-none ${
-              isTableRotated ? "table-force-landscape" : ""
-            }`}
-            style={{
-              backgroundImage: `radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.08) 0%, transparent 80%), radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.05) 0%, transparent 60%)`,
-            }}
-          >
-            {/* TOP BAR: Scoreboard & Opponent Rack (Exact match to image aesthetic) */}
-            <div className="z-10 bg-[#0c1f47]/90 backdrop-blur-md border-b-2 border-yellow-400/90 px-3 py-2 flex flex-col">
-              <div className="flex items-center justify-between gap-2">
-                {/* Left: Back / Exit table button */}
-                <Link
-                  href={links.lobby}
-                  className="rounded-xl bg-white/10 hover:bg-white/20 p-2 text-white text-xs font-bold transition flex items-center gap-1 border border-white/15"
-                  title={t.back}
-                >
-                  <span>⚙️</span>
-                  <span className="hidden sm:inline">{t.back}</span>
-                </Link>
-
-                {/* Center: Score Display: YOU [score] - [score] OPPONENT */}
-                {(() => {
-                  const opponents = room.players.filter((p) => p.id !== selfPlayer.id);
-                  const primaryOpp = opponents[0];
-                  const oppScore =
-                    room.mode === "TEAMS"
-                      ? selfPlayer.team === "TEAM_A"
-                        ? room.teamBScore
-                        : room.teamAScore
-                      : primaryOpp?.score ?? 0;
-                  const oppName =
-                    room.mode === "TEAMS"
-                      ? selfPlayer.team === "TEAM_A"
-                        ? t.teamB
-                        : t.teamA
-                      : primaryOpp?.displayName ?? (lang === "ar" ? "الخصم" : "PLAYER 2");
-                  const myScore =
-                    room.mode === "TEAMS"
-                      ? selfPlayer.team === "TEAM_A"
-                        ? room.teamAScore
-                        : room.teamBScore
-                      : selfPlayer.score;
-
-                  return (
-                    <div className="flex items-center gap-3 sm:gap-5 px-3 py-1 rounded-2xl bg-black/40 border border-yellow-400/30 font-mono shadow-inner">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-[11px] font-bold text-yellow-300">YOU</span>
-                        <span className="text-xl sm:text-2xl font-black text-white">{myScore}</span>
-                      </div>
-                      <div className="flex flex-col items-center">
-                        <span className="text-[9px] uppercase font-bold text-yellow-400/80">
-                          {room.roundNumber}st
-                        </span>
-                        <span className="text-sm font-black text-yellow-400 leading-none">—</span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-xl sm:text-2xl font-black text-white">{oppScore}</span>
-                        <span className="text-[11px] font-bold text-zinc-300 max-w-[80px] sm:max-w-[120px] truncate">
-                          {oppName}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })()}
-
-                {/* Right: Boneyard status & Table rotation */}
-                <div className="flex items-center gap-2">
-                  <span className="rounded-xl bg-black/40 border border-white/15 px-2.5 py-1 text-xs text-yellow-300 font-bold font-mono">
-                    🀄 {room.boneyardCount}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setIsTableRotated(!isTableRotated)}
-                    className="rounded-xl bg-white/10 hover:bg-white/20 p-2 text-white text-xs font-bold transition border border-white/15 cursor-pointer"
-                    title="Rotate Table"
-                  >
-                    🔄
-                  </button>
-                </div>
-              </div>
-
-              {/* Opponent's Hand Rack Peeking Under the Gold Bar */}
-              <div className="flex items-center justify-center gap-1.5 pt-1.5 pb-0.5 overflow-hidden">
-                {room.players
-                  .filter((p) => p.id !== selfPlayer.id)
-                  .map((opp) => (
-                    <div key={opp.id} className="flex items-center gap-1">
-                      {Array.from({ length: Math.min(opp.tilesCount, 7) }).map((_, i) => (
-                        <div
-                          key={i}
-                          className="w-5 h-7 sm:w-6 sm:h-8 rounded-sm sm:rounded bg-gradient-to-b from-white to-slate-200 border border-slate-400 shadow-md flex items-center justify-center"
-                        >
-                          <div className="w-2.5 h-3.5 border border-slate-300 rounded-[1px] bg-slate-50/60" />
-                        </div>
-                      ))}
-                      {opp.tilesCount > 7 && (
-                        <span className="text-[10px] font-mono text-yellow-300 font-bold">
-                          +{opp.tilesCount - 7}
-                        </span>
-                      )}
-                    </div>
-                  ))}
-              </div>
-            </div>
-
-            {/* CENTER ARENA: Auto-Turning Domino Snake Board (ZERO SCROLL) */}
-            <div className="flex-1 min-h-0 relative p-2 sm:p-4 overflow-hidden flex items-center justify-center">
-              <DominoSnakeBoard
-                boardTiles={room.boardTiles}
-                selectedTile={selectedTile}
-                canPlayLeft={canSelectedPlayLeft}
-                canPlayRight={canSelectedPlayRight}
-                leftEnd={room.leftEnd}
-                rightEnd={room.rightEnd}
-                isMyTurn={selfPlayer.isMyTurn}
-                busy={busy}
-                onPlaySide={onPlaySelectedSide}
-                lang={lang}
-              />
-            </div>
-
-            {/* BOTTOM DOCK: Player's Hand on the Table (Exact match to image aesthetic) */}
-            <div className="z-10 bg-[#091a3e]/90 backdrop-blur-md border-t-2 border-yellow-400/80 p-2 sm:p-3 flex flex-col items-center">
-              {/* Turn Announcement & Actions Header */}
-              <div className="w-full flex flex-wrap items-center justify-between gap-2 mb-2 px-1">
-                <div className="flex items-center gap-2">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-yellow-300/90">
-                    {lang === "ar" ? "أوراقك" : "Your Hand"} ({selfPlayer.hand.length})
-                  </span>
-                  {selfPlayer.isMyTurn && (
-                    <span className="rounded-full bg-emerald-500 text-white px-2.5 py-0.5 text-[10px] font-black animate-pulse shadow-md">
-                      {t.yourTurn}
-                    </span>
-                  )}
-                </div>
-
-                {/* Draw / Pass Actions */}
-                {selfPlayer.isMyTurn && (
-                  <div className="flex items-center gap-2">
-                    {canDraw && (
-                      <button
-                        type="button"
-                        disabled={busy}
-                        onClick={onDrawTile}
-                        className="rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 px-3 py-1.5 text-xs font-black text-zinc-950 hover:brightness-110 active:scale-95 transition cursor-pointer shadow-lg"
-                      >
-                        📥 {t.drawTile} ({room.boneyardCount})
-                      </button>
-                    )}
-                    {canPass && (
-                      <button
-                        type="button"
-                        disabled={busy}
-                        onClick={onPassTurn}
-                        className="rounded-xl bg-zinc-800 hover:bg-zinc-700 px-3 py-1.5 text-xs font-black text-white active:scale-95 transition cursor-pointer border border-white/20 shadow-md"
-                      >
-                        ⏭️ {t.passTurn}
-                      </button>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* Selected Tile Helper Indicator */}
-              {selfPlayer.isMyTurn && selectedTile && (
-                <div className="w-full mb-2 flex items-center justify-between px-3 py-1.5 rounded-xl bg-yellow-400/20 border border-yellow-400/40 text-xs text-yellow-200">
-                  <div className="flex items-center gap-2 font-bold truncate">
-                    <span>🎯 {t.selectedTilePrompt}:</span>
-                    <span className="font-mono font-black text-sm bg-black/40 px-2 py-0.5 rounded text-yellow-300">
-                      [{selectedTile[0]}|{selectedTile[1]}]
-                    </span>
-                    <span className="font-normal opacity-90 hidden sm:inline">— {t.playOnTablePrompt}</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedTile(null)}
-                    className="shrink-0 px-2 py-0.5 rounded-lg border border-yellow-400/40 hover:bg-yellow-400/20 text-xs font-semibold cursor-pointer transition"
-                  >
-                    {t.cancel}
-                  </button>
-                </div>
-              )}
-
-              {/* Domino Tiles in Player's Hand (All fit in one row, ZERO scroll) */}
-              <div className="w-full flex items-center justify-center gap-1.5 sm:gap-2.5 pb-1 overflow-x-hidden">
-                {selfPlayer.hand.map((tile, idx) => {
-                  const playability = isTilePlayable(tile, room.leftEnd, room.rightEnd);
-                  const playableNow = selfPlayer.isMyTurn && playability.isPlayable;
-                  const isSelected =
-                    selectedTile !== null &&
-                    selectedTile[0] === tile[0] &&
-                    selectedTile[1] === tile[1];
-
-                  return (
-                    <DominoTileView
-                      key={idx}
-                      tile={tile}
-                      orientation="vertical"
-                      size="responsive"
-                      isPlayable={playableNow}
-                      isSelected={isSelected}
-                      onClick={() => onTileClick(tile)}
-                    />
-                  );
-                })}
-              </div>
-            </div>
-          </section>
-        </>
-      )}
-
-      {/* ROUND OVER / MATCH CHAMPION NOTIFICATION */}
-      {isRoundOver && (
-        <section className="rounded-3xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 p-6 text-center space-y-4 shadow-xl">
-          {isMatchFinished ? (
-            <div className="space-y-3">
-              <div className="text-5xl">🏆👑🎉</div>
-              <h2 className="text-2xl sm:text-3xl font-black text-amber-900 dark:text-amber-200">
-                {t.matchWinner}
-              </h2>
-              <p className="text-sm text-zinc-700 dark:text-zinc-300 font-medium">
-                {room.roundResultSummary}
-              </p>
-              {selfPlayer.isHost && (
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={onReplay}
-                  className="mt-4 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 px-6 py-3 font-bold text-white hover:opacity-95 transition cursor-pointer shadow-md"
-                >
-                  {t.playAgain}
-                </button>
-              )}
-            </div>
-          ) : (
-            <div className="space-y-3">
-              <div className="text-4xl">🏁</div>
-              <h3 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">
-                Round {room.roundNumber} Complete!
-              </h3>
-              <p className="text-sm text-zinc-700 dark:text-zinc-300 font-medium max-w-lg mx-auto">
-                {room.roundResultSummary}
-              </p>
-              {selfPlayer.isHost && (
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={onNextRound}
-                  className="mt-3 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 px-6 py-3 font-bold text-white hover:from-emerald-500 hover:to-teal-500 transition cursor-pointer shadow-md shadow-emerald-600/20"
-                >
-                  {t.nextRound} →
-                </button>
-              )}
-            </div>
-          )}
         </section>
-      )}
 
-      {error && (
-        <p className="rounded-2xl border border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-950/40 p-3.5 text-xs text-red-700 dark:text-red-300 font-medium">
-          {error}
-        </p>
-      )}
-
-      {/* Players List & Scoreboard */}
-      <section className="rounded-3xl border border-zinc-200 dark:border-zinc-800/80 bg-white/90 dark:bg-zinc-900/90 p-5 sm:p-6 shadow-sm">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-base sm:text-lg font-bold text-zinc-900 dark:text-zinc-100">
+        {/* Players List */}
+        <section className="rounded-3xl border border-zinc-200 dark:border-zinc-800/80 bg-white/90 dark:bg-zinc-900/90 p-5 sm:p-6 shadow-sm">
+          <h2 className="text-base sm:text-lg font-bold text-zinc-900 dark:text-zinc-100 mb-4">
             {t.players}
           </h2>
-          <span className="text-xs font-semibold text-zinc-500 dark:text-zinc-400">
-            {playerCount} Players
+          <div className="grid gap-2.5">
+            {room.players.map((player) => {
+              const isSelf = player.id === selfPlayer.id;
+              return (
+                <div
+                  key={player.id}
+                  className="flex items-center justify-between rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-3.5 text-sm"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <span className="font-mono text-xs text-zinc-400">Seat {player.seatIndex + 1}</span>
+                    <PlayerBadge
+                      name={player.displayName}
+                      playerId={player.id}
+                      userId={player.userId}
+                      isSelf={isSelf}
+                      isHost={player.isHost}
+                      size="md"
+                      lang={lang}
+                    />
+                    {player.team && (
+                      <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300">
+                        {player.team === "TEAM_A" ? "Team 1" : "Team 2"}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      </main>
+    );
+  }
+
+  // ==========================================
+  // ACTIVE GAME: FULLSCREEN IMMERSIVE TABLE
+  // ==========================================
+
+  // Compute scores for the top bar
+  const opponents = room.players.filter((p) => p.id !== selfPlayer.id);
+  const primaryOpp = opponents[0];
+  const oppScore =
+    room.mode === "TEAMS"
+      ? selfPlayer.team === "TEAM_A"
+        ? room.teamBScore
+        : room.teamAScore
+      : primaryOpp?.score ?? 0;
+  const oppName =
+    room.mode === "TEAMS"
+      ? selfPlayer.team === "TEAM_A"
+        ? t.teamB
+        : t.teamA
+      : primaryOpp?.displayName ?? (lang === "ar" ? "الخصم" : "PLAYER 2");
+  const myScore =
+    room.mode === "TEAMS"
+      ? selfPlayer.team === "TEAM_A"
+        ? room.teamAScore
+        : room.teamBScore
+      : selfPlayer.score;
+
+  // ---- TOP BAR CONTENT ----
+  const topBarContent = (
+    <>
+      {/* Score Display */}
+      <div className="flex items-center gap-2.5 sm:gap-4 px-2.5 py-1 rounded-2xl bg-black/40 border border-yellow-400/30 font-mono shadow-inner">
+        <div className="flex items-center gap-1">
+          <span className="text-[10px] font-bold text-yellow-300">YOU</span>
+          <span className="text-lg sm:text-xl font-black text-white">{myScore}</span>
+        </div>
+        <div className="flex flex-col items-center">
+          <span className="text-[8px] uppercase font-bold text-yellow-400/80">R{room.roundNumber}</span>
+          <span className="text-xs font-black text-yellow-400 leading-none">—</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <span className="text-lg sm:text-xl font-black text-white">{oppScore}</span>
+          <span className="text-[10px] font-bold text-zinc-300 max-w-[60px] sm:max-w-[100px] truncate">
+            {oppName}
           </span>
         </div>
+      </div>
 
-        <div className="grid gap-2.5">
-          {room.players.map((player) => {
-            const isSelf = player.id === selfPlayer.id;
-            const isTurn = player.id === room.currentTurnPlayerId;
+      {/* Boneyard count */}
+      <span className="rounded-lg bg-black/40 border border-white/15 px-2 py-0.5 text-[10px] text-yellow-300 font-bold font-mono">
+        🀄 {room.boneyardCount}
+      </span>
+    </>
+  );
 
-            return (
-              <div
-                key={player.id}
-                className={`flex items-center justify-between rounded-2xl border p-3.5 text-sm transition ${
-                  isTurn
-                    ? "border-emerald-500 bg-emerald-500/10 ring-1 ring-emerald-500"
-                    : "border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900"
-                }`}
-              >
-                <div className="flex items-center gap-2.5">
-                  <span className="font-mono text-xs text-zinc-400">Seat {player.seatIndex + 1}</span>
-                  <PlayerBadge
-                    name={player.displayName}
-                    playerId={player.id}
-                    userId={player.userId}
-                    isSelf={isSelf}
-                    isHost={player.isHost}
-                    size="md"
-                    lang={lang}
-                  />
-                  {player.team && (
-                    <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300">
-                      {player.team === "TEAM_A" ? "Team 1" : "Team 2"}
-                    </span>
-                  )}
-                </div>
+  // ---- DOCK HEADER (turn info, selected tile, draw/pass buttons) ----
+  const dockHeaderContent = (
+    <div className="flex flex-wrap items-center justify-between gap-2 px-1">
+      <div className="flex items-center gap-2">
+        <span className="text-[10px] font-bold uppercase tracking-wider text-yellow-300/90">
+          {lang === "ar" ? "أوراقك" : "Your Hand"} ({selfPlayer.hand.length})
+        </span>
+        {selfPlayer.isMyTurn && (
+          <span className="rounded-full bg-emerald-500 text-white px-2 py-0.5 text-[10px] font-black animate-pulse shadow-md">
+            {t.yourTurn}
+          </span>
+        )}
+      </div>
 
-                <div className="flex items-center gap-3">
-                  {/* Remaining tiles or revealed pip count if round over */}
-                  {isRoundOver && player.pipSum !== null ? (
-                    <span className="text-xs font-bold text-zinc-500">
-                      [{player.pipSum} pips]
-                    </span>
-                  ) : (
-                    <span className="text-xs font-mono text-zinc-500">
-                      🀄 {player.tilesCount} tiles
-                    </span>
-                  )}
+      {/* Draw / Pass + Selected tile info */}
+      <div className="flex items-center gap-2">
+        {selfPlayer.isMyTurn && selectedTile && (
+          <div className="flex items-center gap-1.5 text-[10px] text-yellow-200 font-bold">
+            <span className="font-mono bg-black/40 px-1.5 py-0.5 rounded text-yellow-300">
+              [{selectedTile[0]}|{selectedTile[1]}]
+            </span>
+            <button
+              type="button"
+              onClick={() => setSelectedTile(null)}
+              className="px-1.5 py-0.5 rounded border border-yellow-400/40 hover:bg-yellow-400/20 cursor-pointer transition text-[9px]"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+        {selfPlayer.isMyTurn && canDraw && (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={onDrawTile}
+            className="rounded-lg bg-gradient-to-r from-amber-500 to-yellow-500 px-2.5 py-1 text-[10px] font-black text-zinc-950 hover:brightness-110 active:scale-95 transition cursor-pointer shadow-lg"
+          >
+            📥 {t.drawTile}
+          </button>
+        )}
+        {selfPlayer.isMyTurn && canPass && (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={onPassTurn}
+            className="rounded-lg bg-zinc-800 hover:bg-zinc-700 px-2.5 py-1 text-[10px] font-black text-white active:scale-95 transition cursor-pointer border border-white/20"
+          >
+            ⏭️ {t.passTurn}
+          </button>
+        )}
+      </div>
+    </div>
+  );
 
-                  <div className="flex items-center gap-1.5 font-mono font-bold text-xs">
-                    <span className="text-sm font-extrabold text-emerald-600 dark:text-emerald-400">
-                      {player.score}
-                    </span>
-                    <span className="opacity-60">/ {room.scoreLimit} pts</span>
-                  </div>
+  // ---- DOCK TILES (player's hand) ----
+  const dockTiles = selfPlayer.hand.map((tile, idx) => {
+    const playability = isTilePlayable(tile, room.leftEnd, room.rightEnd);
+    const playableNow = selfPlayer.isMyTurn && playability.isPlayable;
+    const isSelected =
+      selectedTile !== null &&
+      selectedTile[0] === tile[0] &&
+      selectedTile[1] === tile[1];
 
-                  {isTurn && <span className="text-sm animate-bounce">🎯</span>}
-                </div>
-              </div>
-            );
-          })}
+    return (
+      <DominoTileView
+        key={idx}
+        tile={tile}
+        orientation="vertical"
+        size="responsive"
+        isPlayable={playableNow}
+        isSelected={isSelected}
+        onClick={() => onTileClick(tile)}
+      />
+    );
+  });
+
+  // ---- ROUND OVER OVERLAY CONTENT ----
+  const roundOverContent = isRoundOver ? (
+    <div className="rounded-3xl border border-zinc-200/20 bg-zinc-950/95 backdrop-blur-xl p-6 text-center space-y-4 shadow-2xl">
+      {isMatchFinished ? (
+        <div className="space-y-3">
+          <div className="text-5xl">🏆👑🎉</div>
+          <h2 className="text-2xl sm:text-3xl font-black text-amber-200">
+            {t.matchWinner}
+          </h2>
+          <p className="text-sm text-zinc-300 font-medium">
+            {room.roundResultSummary}
+          </p>
+          {selfPlayer.isHost && (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={onReplay}
+              className="mt-4 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 px-6 py-3 font-bold text-white hover:opacity-95 transition cursor-pointer shadow-md"
+            >
+              {t.playAgain}
+            </button>
+          )}
         </div>
-      </section>
+      ) : (
+        <div className="space-y-3">
+          <div className="text-4xl">🏁</div>
+          <h3 className="text-xl font-bold text-zinc-100">
+            Round {room.roundNumber} Complete!
+          </h3>
+          <p className="text-sm text-zinc-300 font-medium max-w-lg mx-auto">
+            {room.roundResultSummary}
+          </p>
+          {selfPlayer.isHost && (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={onNextRound}
+              className="mt-3 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 px-6 py-3 font-bold text-white hover:from-emerald-500 hover:to-teal-500 transition cursor-pointer shadow-md shadow-emerald-600/20"
+            >
+              {t.nextRound} →
+            </button>
+          )}
+        </div>
+      )}
 
-      {/* Live Event Log */}
-      <section className="rounded-3xl border border-zinc-200 dark:border-zinc-800/80 bg-white/90 dark:bg-zinc-900/90 p-5 sm:p-6 shadow-sm">
-        <h2 className="text-base sm:text-lg font-bold text-zinc-900 dark:text-zinc-100 mb-3">
+      {/* Player scores summary */}
+      <div className="grid gap-2 pt-3">
+        {room.players.map((player) => (
+          <div
+            key={player.id}
+            className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs"
+          >
+            <span className="font-bold text-white">{player.displayName}</span>
+            <div className="flex items-center gap-2">
+              {player.pipSum !== null && (
+                <span className="text-zinc-400">[{player.pipSum} pips]</span>
+              )}
+              <span className="font-mono font-bold text-emerald-400">{player.score} pts</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  ) : undefined;
+
+  // ---- DRAWER CONTENT (scoreboard, language, event log) ----
+  const drawerContent = (
+    <>
+      {/* Language Switch */}
+      <div className="rounded-xl bg-white/5 border border-white/10 p-3">
+        <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block mb-2">
+          {t.language}
+        </span>
+        <div className="flex items-center gap-2">
+          <Link
+            className={`rounded-lg border px-3 py-1.5 text-xs font-bold transition ${
+              lang === "en"
+                ? "border-emerald-500 bg-emerald-500/20 text-emerald-300"
+                : "border-white/10 text-zinc-400 hover:bg-white/10"
+            }`}
+            href={links.en}
+          >
+            English
+          </Link>
+          <Link
+            className={`rounded-lg border px-3 py-1.5 text-xs font-bold transition ${
+              lang === "ar"
+                ? "border-emerald-500 bg-emerald-500/20 text-emerald-300"
+                : "border-white/10 text-zinc-400 hover:bg-white/10"
+            }`}
+            href={links.ar}
+          >
+            العربية
+          </Link>
+        </div>
+      </div>
+
+      {/* Teams Scoreboard */}
+      {room.mode === "TEAMS" && (
+        <div className="rounded-xl bg-white/5 border border-white/10 p-3 space-y-2">
+          <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">Teams</span>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="rounded-lg border border-indigo-500/30 bg-indigo-500/10 p-2 text-center">
+              <p className="text-[10px] font-bold text-indigo-300">{t.teamA}</p>
+              <p className="text-lg font-black text-white font-mono">{room.teamAScore}</p>
+            </div>
+            <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-2 text-center">
+              <p className="text-[10px] font-bold text-amber-300">{t.teamB}</p>
+              <p className="text-lg font-black text-white font-mono">{room.teamBScore}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Players Scoreboard */}
+      <div className="rounded-xl bg-white/5 border border-white/10 p-3 space-y-2">
+        <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">
+          {t.players}
+        </span>
+        {room.players.map((player) => {
+          const isSelf = player.id === selfPlayer.id;
+          const isTurn = player.id === room.currentTurnPlayerId;
+          return (
+            <div
+              key={player.id}
+              className={`flex items-center justify-between rounded-lg p-2 text-xs transition ${
+                isTurn
+                  ? "bg-emerald-500/15 border border-emerald-500/30"
+                  : "bg-white/5 border border-white/5"
+              }`}
+            >
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] text-zinc-500">S{player.seatIndex + 1}</span>
+                <span className={`font-bold ${isSelf ? "text-yellow-300" : "text-white"}`}>
+                  {player.displayName}
+                  {isSelf && (lang === "ar" ? " (أنت)" : " (You)")}
+                </span>
+                {player.team && (
+                  <span className="text-[9px] font-bold text-zinc-400">
+                    {player.team === "TEAM_A" ? "T1" : "T2"}
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-zinc-400">🀄 {player.tilesCount}</span>
+                <span className="font-mono font-bold text-emerald-400">{player.score}</span>
+                {isTurn && <span className="animate-bounce">🎯</span>}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Event Log */}
+      <div className="rounded-xl bg-white/5 border border-white/10 p-3 space-y-2">
+        <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">
           {t.actions}
-        </h2>
-        <div className="grid gap-2 max-h-60 overflow-y-auto">
+        </span>
+        <div className="max-h-48 overflow-y-auto space-y-1.5">
           {room.actions.map((action) => (
             <div
               key={action.id}
-              className="rounded-xl border border-zinc-100 dark:border-zinc-800/60 p-2.5 text-xs text-zinc-600 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-950/60"
+              className="rounded-lg bg-white/5 p-2 text-[10px] text-zinc-400"
             >
-              <span className="font-mono font-bold text-zinc-900 dark:text-zinc-200">
-                {action.type}
-              </span>
+              <span className="font-mono font-bold text-zinc-200">{action.type}</span>
               {action.value && (
-                <span className="ml-1.5 font-mono font-bold text-emerald-600 dark:text-emerald-400">
-                  {action.value}
-                </span>
+                <span className="ml-1 font-mono font-bold text-emerald-400">{action.value}</span>
               )}
               {action.details && (
-                <span className="ml-2 font-normal">{action.details}</span>
+                <span className="ml-1.5">{action.details}</span>
               )}
             </div>
           ))}
         </div>
-      </section>
-    </main>
+      </div>
+    </>
+  );
+
+  return (
+    <GameTableShell
+      theme="domino"
+      lang={lang}
+      lobbyHref={links.lobby}
+      roomCode={roomCode}
+      isMyTurn={selfPlayer.isMyTurn}
+      onLeave={onLeaveRoom}
+      topBar={topBarContent}
+      dock={dockTiles}
+      dockHeader={dockHeaderContent}
+      drawerContent={drawerContent}
+      isRoundOver={isRoundOver}
+      roundOverContent={roundOverContent}
+      error={error}
+      busy={busy}
+    >
+      {/* CENTER ARENA: Opponents + Domino Snake Board */}
+      <div className="absolute inset-0 flex flex-col z-0">
+        {/* Opponent's tiles rack at top of arena */}
+        <div className="flex items-center justify-center gap-2 pt-2 pb-1 px-2 z-10">
+          {opponents.map((opp) => (
+            <div key={opp.id} className="flex flex-col items-center gap-0.5">
+              <div className="flex items-center gap-0.5">
+                {Array.from({ length: Math.min(opp.tilesCount, 7) }).map((_, i) => (
+                  <div
+                    key={i}
+                    className="w-4 h-6 sm:w-5 sm:h-7 rounded-[2px] bg-gradient-to-b from-white to-slate-200 border border-slate-400 shadow-sm flex items-center justify-center"
+                  >
+                    <div className="w-2 h-3 border border-slate-300 rounded-[1px] bg-slate-50/60" />
+                  </div>
+                ))}
+                {opp.tilesCount > 7 && (
+                  <span className="text-[9px] font-mono text-yellow-300 font-bold">
+                    +{opp.tilesCount - 7}
+                  </span>
+                )}
+              </div>
+              <span className="text-[9px] font-bold text-white/60 truncate max-w-[60px]">
+                {opp.displayName}
+              </span>
+            </div>
+          ))}
+        </div>
+
+        {/* Snake Board - fills remaining space */}
+        <div className="flex-1 min-h-0 relative overflow-hidden flex items-center justify-center p-1">
+          <DominoSnakeBoard
+            boardTiles={room.boardTiles}
+            selectedTile={selectedTile}
+            canPlayLeft={canSelectedPlayLeft}
+            canPlayRight={canSelectedPlayRight}
+            leftEnd={room.leftEnd}
+            rightEnd={room.rightEnd}
+            isMyTurn={selfPlayer.isMyTurn}
+            busy={busy}
+            onPlaySide={onPlaySelectedSide}
+            lang={lang}
+          />
+        </div>
+      </div>
+    </GameTableShell>
   );
 }
