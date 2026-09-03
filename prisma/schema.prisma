@@ -261,6 +261,9 @@ model User {
   estimationRoomPlayers     EstimationRoomPlayer[]
   createdEstimationRooms    EstimationRoom[]           @relation("EstimationCreatedRooms")
   wonEstimationRooms        EstimationRoom[]           @relation("EstimationWonRooms")
+  sabahoRoomPlayers         SabahoRoomPlayer[]
+  createdSabahoRooms        SabahoRoom[]               @relation("SabahoCreatedRooms")
+  wonSabahoRooms            SabahoRoom[]               @relation("SabahoWonRooms")
 }
 
 model Account {
@@ -988,6 +991,126 @@ model EstimationRoomAction {
   room      EstimationRoom        @relation(fields: [roomId], references: [id], onDelete: Cascade)
   actor     EstimationRoomPlayer? @relation("EstimationActionActor", fields: [actorId], references: [id], onDelete: SetNull)
 }
+
+enum SabahoRoomVisibility {
+  PUBLIC
+  PRIVATE
+}
+
+enum SabahoRoomStatus {
+  WAITING
+  PLAYING
+  FINISHED
+}
+
+enum SabahoGameMode {
+  MIXED
+  AUCTION
+  CAREER_PATH
+  SPEED
+  PASSWORD
+}
+
+enum SabahoPhase {
+  AUCTION_BIDDING
+  AUCTION_EXECUTION
+  CAREER_REVEAL
+  CAREER_GUESS
+  SPEED_CHALLENGE
+  PASSWORD_ROUND
+  ROUND_REVIEW
+  ROUND_OVER
+  FINISHED
+}
+
+enum SabahoActionType {
+  JOIN
+  START
+  UPDATE_TEAM_NAMES
+  CHANGE_TEAM
+  BID
+  PASS_BID
+  BUZZ
+  SUBMIT_GUESS
+  NEXT_STEP
+  PASSWORD_CORRECT
+  PASSWORD_PASS
+  JUDGE_ANSWER
+  NEXT_ROUND
+  REPLAY
+  LEAVE
+}
+
+model SabahoRoom {
+  id                   String               @id @default(cuid())
+  roomCode             String               @unique
+  title                String
+  visibility           SabahoRoomVisibility @default(PUBLIC)
+  passwordHash         String?
+  status               SabahoRoomStatus     @default(WAITING)
+  gameMode             SabahoGameMode       @default(MIXED)
+  currentPhase         SabahoPhase          @default(AUCTION_BIDDING)
+  roundsTotal          Int                  @default(6) // Total rounds
+  roundNumber          Int                  @default(1)
+  isTeamPlay           Boolean              @default(true) // 2 Teams by default or FFA Solo
+  team1Score           Int                  @default(0)
+  team2Score           Int                  @default(0)
+  team1Name            String               @default("فريق الأهلي")
+  team2Name            String               @default("فريق الزمالك")
+  currentTurnPlayerId  String?
+  clueGiverPlayerId    String?              // Player giving the 1-word hint in Password
+  passwordScore        Int                  @default(0) // Correct words in current password turn
+  activeQuestionJson   String?              // Current challenge question / career / auction / password list
+  activeBuzzerPlayerId String?              // Who pressed the buzzer
+  auctionHighBid       Int?                 // Highest bid in auction
+  auctionHighBidderId  String?              // Player with highest bid
+  careerRevealedIndex  Int                  @default(0) // How many clubs revealed so far
+  timerEndsAt          DateTime?
+  timerSeconds         Int                  @default(30)
+  roundWinnerId        String?
+  winnerId             String?
+  winnerTeam           Int?                 // 1 or 2
+  createdById          String
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+  createdBy            User                 @relation("SabahoCreatedRooms", fields: [createdById], references: [id], onDelete: Cascade)
+  winner               User?                @relation("SabahoWonRooms", fields: [winnerId], references: [id], onDelete: SetNull)
+  players              SabahoRoomPlayer[]
+  actions              SabahoRoomAction[]
+}
+
+model SabahoRoomPlayer {
+  id           String             @id @default(cuid())
+  roomId       String
+  userId       String
+  displayName  String
+  seatIndex    Int                @default(0)
+  team         Int                @default(1) // 1 or 2 (or seatIndex for solo)
+  score        Int                @default(0) // Individual score
+  roundPoints  Int                @default(0)
+  hasPassedBid Boolean            @default(false)
+  isHost       Boolean            @default(false)
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+  room         SabahoRoom         @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user         User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  actions      SabahoRoomAction[] @relation("SabahoActionActor")
+
+  @@unique([roomId, userId])
+}
+
+model SabahoRoomAction {
+  id        String            @id @default(cuid())
+  roomId    String
+  actorId   String?
+  type      SabahoActionType
+  value     String?
+  details   String?
+  createdAt DateTime          @default(now())
+  room      SabahoRoom        @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  actor     SabahoRoomPlayer? @relation("SabahoActionActor", fields: [actorId], references: [id], onDelete: SetNull)
+}
+
 
 
 

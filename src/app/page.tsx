@@ -266,6 +266,33 @@ export default async function Home() {
             </Link>
           </div>
         </div>
+
+        {/* Game 10: Sabaho Tahadi (صباحو تحدي) */}
+        <div className="group relative flex flex-col justify-between rounded-3xl border border-zinc-200 dark:border-zinc-800 bg-white/90 dark:bg-zinc-900/90 p-5 shadow-sm backdrop-blur-md transition hover:border-emerald-500 hover:shadow-xl hover:shadow-emerald-500/10">
+          <div>
+            <div className="flex items-center justify-between">
+              <span className="text-3xl animate-bounce">⚽</span>
+              <span className="rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 text-[11px] font-bold border border-emerald-500/20">
+                Football Challenge
+              </span>
+            </div>
+            <h2 className="mt-3 text-lg font-extrabold text-zinc-900 dark:text-zinc-50">
+              صباحو تحدي (Sabaho Tahadi)
+            </h2>
+            <p className="mt-1.5 text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed">
+              Egyptian cafe football show challenges! Auction bidding (المزاد), Career Path (مسيرة اللاعب), and 2-team showdowns!
+            </p>
+          </div>
+
+          <div className="mt-5">
+            <Link
+              href="/games/sabaho?lang=ar"
+              className="block w-full text-center rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-amber-500 px-3 py-2 text-xs font-bold text-white hover:opacity-95 transition shadow-md shadow-emerald-600/20"
+            >
+              العب صباحو تحدي ⚽
+            </Link>
+          </div>
+        </div>
       </div>
 
       {/* Auth Status & Quick Actions */}

@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { hashPassword, verifyPassword } from "@/lib/password";
 import { prisma } from "@/lib/prisma";
 import { pickSecretWordAndCandidates } from "./bekasa-words";
+import { generateBekasaWordPayloadWithGemini } from "./bekasa-ai";
 
 export const BEKASA_ROOM_CODE_REGEX = /^[A-Z0-9]{6}$/;
 
@@ -367,7 +368,7 @@ export async function startBekasaRoom({
 
   // Pick Category & Secret Word with close candidate distractors
   const chosenCat = categoryId || room.categoryId;
-  const wordPayload = pickSecretWordAndCandidates(chosenCat);
+  const wordPayload = await generateBekasaWordPayloadWithGemini(chosenCat);
 
   // Pick random Bekas
   const randomIndex = crypto.randomInt(0, room.players.length);
@@ -877,7 +878,7 @@ export async function nextRoundBekasaAction({
   }
 
   const chosenCat = categoryId || room.categoryId;
-  const wordPayload = pickSecretWordAndCandidates(chosenCat);
+  const wordPayload = await generateBekasaWordPayloadWithGemini(chosenCat);
 
   // Pick random Bekas
   const randomIndex = crypto.randomInt(0, room.players.length);
@@ -965,7 +966,7 @@ export async function replayBekasaGameAction({
   }
 
   const chosenCat = categoryId || room.categoryId;
-  const wordPayload = pickSecretWordAndCandidates(chosenCat);
+  const wordPayload = await generateBekasaWordPayloadWithGemini(chosenCat);
 
   const randomIndex = crypto.randomInt(0, room.players.length);
   const chosenBekas = room.players[randomIndex];

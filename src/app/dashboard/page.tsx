@@ -192,6 +192,25 @@ export default async function DashboardPage() {
             Play استميشن (Estimation) →
           </Link>
         </div>
+
+        {/* Sabaho Tahadi Card */}
+        <div className="flex flex-col justify-between rounded-3xl border border-zinc-200 dark:border-zinc-800 bg-white/90 dark:bg-zinc-900/90 p-5 shadow-sm">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-2xl">⚽</span>
+              <h2 className="text-base font-bold text-zinc-900 dark:text-zinc-50">صباحو تحدي (Sabaho Tahadi)</h2>
+            </div>
+            <p className="mt-2 text-xs text-zinc-600 dark:text-zinc-400">
+              The legendary football challenge! Auction bidding (المزاد), Career Path (مسيرة اللاعب), and 2-team cafe showdowns.
+            </p>
+          </div>
+          <Link
+            href="/games/sabaho?lang=ar"
+            className="mt-5 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-amber-500 px-3 py-2 text-center text-xs font-bold text-white hover:opacity-95 transition shadow-md shadow-emerald-600/20"
+          >
+            Play صباحو تحدي →
+          </Link>
+        </div>
       </div>
     </main>
   );
