@@ -362,9 +362,17 @@ export default function DominoRoomClient({ roomCode }: { roomCode: string }) {
   };
 
   const onTileClick = (tile: DominoTile) => {
-    if (!roomData?.selfPlayer.isMyTurn) return;
+    if (!roomData?.selfPlayer.isMyTurn || busy) return;
 
-    const { isPlayable } = isTilePlayable(
+    // If board is empty, can immediately play start tile:
+    if (roomData.room.boardTiles.length === 0) {
+      playDominoSound("clack");
+      callAction({ type: "PLAY_TILE", tile, side: "LEFT" });
+      setSelectedTile(null);
+      return;
+    }
+
+    const { isPlayable, canPlayLeft, canPlayRight } = isTilePlayable(
       tile,
       roomData.room.leftEnd,
       roomData.room.rightEnd,
@@ -372,7 +380,22 @@ export default function DominoRoomClient({ roomCode }: { roomCode: string }) {
 
     if (!isPlayable) return;
 
-    // Toggle selection: if already selected, deselect
+    // If there is ONLY ONE place for the tile, immediately play it without requiring place selection!
+    if (canPlayLeft && !canPlayRight) {
+      playDominoSound("clack");
+      callAction({ type: "PLAY_TILE", tile, side: "LEFT" });
+      setSelectedTile(null);
+      return;
+    }
+
+    if (canPlayRight && !canPlayLeft) {
+      playDominoSound("clack");
+      callAction({ type: "PLAY_TILE", tile, side: "RIGHT" });
+      setSelectedTile(null);
+      return;
+    }
+
+    // Both sides are playable: prompt user to choose side on table
     if (selectedTile && selectedTile[0] === tile[0] && selectedTile[1] === tile[1]) {
       setSelectedTile(null);
       return;
@@ -658,6 +681,19 @@ export default function DominoRoomClient({ roomCode }: { roomCode: string }) {
       <span className="rounded-lg bg-black/40 border border-white/15 px-2 py-0.5 text-[10px] text-yellow-300 font-bold font-mono">
         🀄 {room.boneyardCount}
       </span>
+
+      {/* Last card badge if any player has only 1 tile */}
+      {room.players
+        .filter((p) => p.tilesCount === 1)
+        .map((p) => (
+          <span
+            key={p.id}
+            className="animate-bounce rounded-full bg-gradient-to-r from-red-600 via-rose-600 to-amber-500 border border-yellow-300 px-2.5 py-0.5 text-[10px] text-white font-black tracking-wider shadow-lg flex items-center gap-1"
+          >
+            <span>⚠️</span>
+            <span>{p.displayName} {lang === "ar" ? "آخر كارت!" : "is LAST!"}</span>
+          </span>
+        ))}
     </>
   );
 
@@ -668,6 +704,12 @@ export default function DominoRoomClient({ roomCode }: { roomCode: string }) {
         <span className="text-[10px] font-bold uppercase tracking-wider text-yellow-300/90">
           {lang === "ar" ? "أوراقك" : "Your Hand"} ({selfPlayer.hand.length})
         </span>
+        {selfPlayer.hand.length === 1 && (
+          <span className="rounded-full bg-gradient-to-r from-red-600 to-amber-600 border border-yellow-300 text-white px-2.5 py-0.5 text-[10px] font-black animate-bounce shadow-md flex items-center gap-1">
+            <span>⚠️</span>
+            <span>{selfPlayer.displayName} {lang === "ar" ? "آخر كارت!" : "is LAST!"}</span>
+          </span>
+        )}
         {selfPlayer.isMyTurn && (
           <span className="rounded-full bg-emerald-500 text-white px-2 py-0.5 text-[10px] font-black animate-pulse shadow-md">
             {t.yourTurn}
@@ -935,14 +977,24 @@ export default function DominoRoomClient({ roomCode }: { roomCode: string }) {
       {/* CENTER ARENA: Opponents + Domino Snake Board */}
       <div className="absolute inset-0 flex flex-col z-0">
         {/* Opponent's tiles rack at top of arena */}
-        <div className="flex items-center justify-center gap-2 pt-2 pb-1 px-2 z-10">
+        <div className="flex items-center justify-center gap-4 pt-2 pb-1 px-2 z-10">
           {opponents.map((opp) => (
-            <div key={opp.id} className="flex flex-col items-center gap-0.5">
+            <div key={opp.id} className="flex flex-col items-center gap-0.5 relative">
+              {opp.tilesCount === 1 && (
+                <div className="animate-bounce mb-0.5 px-2.5 py-0.5 rounded-full bg-gradient-to-r from-red-600 via-rose-600 to-amber-500 text-white text-[9px] font-black tracking-wider uppercase shadow-xl border border-yellow-300 flex items-center gap-1">
+                  <span>⚠️</span>
+                  <span>{opp.displayName} {lang === "ar" ? "آخر كارت!" : "is LAST!"}</span>
+                </div>
+              )}
               <div className="flex items-center gap-0.5">
                 {Array.from({ length: Math.min(opp.tilesCount, 7) }).map((_, i) => (
                   <div
                     key={i}
-                    className="w-4 h-6 sm:w-5 sm:h-7 rounded-[2px] bg-gradient-to-b from-white to-slate-200 border border-slate-400 shadow-sm flex items-center justify-center"
+                    className={`w-4 h-6 sm:w-5 sm:h-7 rounded-[2px] bg-gradient-to-b from-white to-slate-200 border shadow-sm flex items-center justify-center ${
+                      opp.tilesCount === 1
+                        ? "border-amber-400 ring-2 ring-red-500/80"
+                        : "border-slate-400"
+                    }`}
                   >
                     <div className="w-2 h-3 border border-slate-300 rounded-[1px] bg-slate-50/60" />
                   </div>
@@ -953,7 +1005,13 @@ export default function DominoRoomClient({ roomCode }: { roomCode: string }) {
                   </span>
                 )}
               </div>
-              <span className="text-[9px] font-bold text-white/60 truncate max-w-[60px]">
+              <span
+                className={`text-[9px] truncate max-w-[80px] ${
+                  opp.tilesCount === 1
+                    ? "text-amber-300 font-black animate-pulse"
+                    : "text-white/60 font-bold"
+                }`}
+              >
                 {opp.displayName}
               </span>
             </div>

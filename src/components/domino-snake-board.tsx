@@ -94,17 +94,19 @@ export function DominoSnakeBoard({
 
     const positions: CalculatedTile[] = new Array(boardTiles.length);
 
-    // Place start tile at (0, 0)
+    // Place start tile centered vertically on Y = 0
     const startTile = boardTiles[validStartIdx].tile;
     const startIsDouble = startTile[0] === startTile[1];
+    const startW = startIsDouble ? TILE_W : TILE_L;
+    const startH = startIsDouble ? TILE_L : TILE_W;
 
     positions[validStartIdx] = {
       tile: startTile,
       side: "START",
       x: 0,
-      y: 0,
-      width: startIsDouble ? TILE_W : TILE_L,
-      height: startIsDouble ? TILE_L : TILE_W,
+      y: -startH / 2,
+      width: startW,
+      height: startH,
       isVertical: startIsDouble,
       val1: startTile[0],
       val2: startTile[1],
@@ -114,11 +116,14 @@ export function DominoSnakeBoard({
     const MAX_RIGHT = 4;
     const MAX_DOWN = 2;
 
-    let currX = positions[validStartIdx].x + positions[validStartIdx].width + GAP;
-    let currY = positions[validStartIdx].y;
     let dirRight: "RIGHT" | "DOWN" | "LEFT" = "RIGHT";
     let countInDir = 0;
     let lastRightDir = "RIGHT";
+
+    let rightRowCenterY = 0;
+    let rightColCenterX = 0;
+    let currRightX = positions[validStartIdx].x + positions[validStartIdx].width + GAP;
+    let currRightY = 0;
 
     for (let i = validStartIdx + 1; i < boardTiles.length; i++) {
       const t = boardTiles[i].tile;
@@ -130,13 +135,12 @@ export function DominoSnakeBoard({
         const isVert = isDouble; // doubles perpendicular
         const w = isVert ? TILE_W : TILE_L;
         const h = isVert ? TILE_L : TILE_W;
-        const yOffset = isVert ? -(TILE_L - TILE_W) / 2 : 0;
 
         positions[i] = {
           tile: t,
           side: "RIGHT",
-          x: currX,
-          y: currY + yOffset,
+          x: currRightX,
+          y: rightRowCenterY - h / 2,
           width: w,
           height: h,
           isVertical: isVert,
@@ -144,25 +148,26 @@ export function DominoSnakeBoard({
           val2: t[1],
         };
 
-        currX += w + GAP;
+        currRightX += w + GAP;
+
         if (countInDir >= MAX_RIGHT) {
           dirRight = "DOWN";
           countInDir = 0;
-          currX -= (w + GAP);
-          currY += h + GAP;
+          // Connecting end of horizontal tile moving right is its right half: [pos.x + pos.width - TILE_W, pos.x + pos.width]
+          rightColCenterX = positions[i].x + positions[i].width - TILE_W / 2;
+          currRightY = positions[i].y + positions[i].height + GAP;
         }
       } else if (dirRight === "DOWN") {
         countInDir++;
         const isVert = !isDouble; // regular tile is vertical, double is horizontal
         const w = isVert ? TILE_W : TILE_L;
         const h = isVert ? TILE_L : TILE_W;
-        const xOffset = !isVert ? -(TILE_L - TILE_W) / 2 : 0;
 
         positions[i] = {
           tile: t,
           side: "RIGHT",
-          x: currX + xOffset,
-          y: currY,
+          x: rightColCenterX - w / 2,
+          y: currRightY,
           width: w,
           height: h,
           isVertical: isVert,
@@ -170,25 +175,26 @@ export function DominoSnakeBoard({
           val2: t[1],
         };
 
-        currY += h + GAP;
+        currRightY += h + GAP;
+
         if (countInDir >= MAX_DOWN) {
           dirRight = "LEFT";
           countInDir = 0;
-          currY -= (h + GAP);
-          currX -= (w + GAP);
+          // Connecting end of vertical tile moving down is its bottom half: [pos.y + pos.height - TILE_W, pos.y + pos.height]
+          rightRowCenterY = positions[i].y + positions[i].height - TILE_W / 2;
+          currRightX = positions[i].x - GAP;
         }
       } else if (dirRight === "LEFT") {
         countInDir++;
         const isVert = isDouble;
         const w = isVert ? TILE_W : TILE_L;
         const h = isVert ? TILE_L : TILE_W;
-        const yOffset = isVert ? -(TILE_L - TILE_W) / 2 : 0;
 
         positions[i] = {
           tile: t,
           side: "RIGHT",
-          x: currX - w,
-          y: currY + yOffset,
+          x: currRightX - w,
+          y: rightRowCenterY - h / 2,
           width: w,
           height: h,
           isVertical: isVert,
@@ -196,7 +202,7 @@ export function DominoSnakeBoard({
           val2: t[0],
         };
 
-        currX -= (w + GAP);
+        currRightX -= (w + GAP);
       }
     }
 
@@ -204,22 +210,34 @@ export function DominoSnakeBoard({
     const lastRightTile = positions[positions.length - 1];
     let rightTargetPos = { x: 0, y: 0 };
     if (lastRightDir === "RIGHT") {
-      rightTargetPos = { x: lastRightTile.x + lastRightTile.width + GAP + 6, y: lastRightTile.y };
+      rightTargetPos = {
+        x: lastRightTile.x + lastRightTile.width + GAP + 4,
+        y: lastRightTile.y + (lastRightTile.height - 32) / 2,
+      };
     } else if (lastRightDir === "DOWN") {
-      rightTargetPos = { x: lastRightTile.x, y: lastRightTile.y + lastRightTile.height + GAP + 6 };
+      rightTargetPos = {
+        x: lastRightTile.x + (lastRightTile.width - 54) / 2,
+        y: lastRightTile.y + lastRightTile.height + GAP + 4,
+      };
     } else {
-      rightTargetPos = { x: lastRightTile.x - 56 - GAP, y: lastRightTile.y };
+      rightTargetPos = {
+        x: lastRightTile.x - 54 - GAP - 4,
+        y: lastRightTile.y + (lastRightTile.height - 32) / 2,
+      };
     }
 
     // Trace LEFT side (indices validStartIdx - 1 down to 0)
     const MAX_LEFT = 4;
     const MAX_UP = 2;
 
-    let currLeftX = positions[validStartIdx].x - GAP;
-    let currLeftY = positions[validStartIdx].y;
     let dirLeft: "LEFT" | "UP" | "RIGHT" = "LEFT";
     let countLeftInDir = 0;
     let lastLeftDir = "LEFT";
+
+    let leftRowCenterY = 0;
+    let leftColCenterX = 0;
+    let currLeftX = positions[validStartIdx].x - GAP;
+    let currLeftY = 0;
 
     for (let i = validStartIdx - 1; i >= 0; i--) {
       const t = boardTiles[i].tile;
@@ -231,13 +249,12 @@ export function DominoSnakeBoard({
         const isVert = isDouble;
         const w = isVert ? TILE_W : TILE_L;
         const h = isVert ? TILE_L : TILE_W;
-        const yOffset = isVert ? -(TILE_L - TILE_W) / 2 : 0;
 
         positions[i] = {
           tile: t,
           side: "LEFT",
           x: currLeftX - w,
-          y: currLeftY + yOffset,
+          y: leftRowCenterY - h / 2,
           width: w,
           height: h,
           isVertical: isVert,
@@ -246,55 +263,57 @@ export function DominoSnakeBoard({
         };
 
         currLeftX -= (w + GAP);
+
         if (countLeftInDir >= MAX_LEFT) {
           dirLeft = "UP";
           countLeftInDir = 0;
-          currLeftX += GAP;
-          currLeftY -= GAP;
+          // Connecting end of horizontal tile moving left is its left half: [pos.x, pos.x + TILE_W]
+          leftColCenterX = positions[i].x + TILE_W / 2;
+          currLeftY = positions[i].y - GAP;
         }
       } else if (dirLeft === "UP") {
         countLeftInDir++;
         const isVert = !isDouble;
         const w = isVert ? TILE_W : TILE_L;
         const h = isVert ? TILE_L : TILE_W;
-        const xOffset = !isVert ? -(TILE_L - TILE_W) / 2 : 0;
 
         positions[i] = {
           tile: t,
           side: "LEFT",
-          x: currLeftX + xOffset,
+          x: leftColCenterX - w / 2,
           y: currLeftY - h,
           width: w,
           height: h,
           isVertical: isVert,
-          val1: t[1],
-          val2: t[0],
+          val1: t[0],
+          val2: t[1],
         };
 
         currLeftY -= (h + GAP);
+
         if (countLeftInDir >= MAX_UP) {
           dirLeft = "RIGHT";
           countLeftInDir = 0;
-          currLeftY += GAP;
-          currLeftX += (w + GAP);
+          // Connecting end of vertical tile moving up is its top half: [pos.y, pos.y + TILE_W]
+          leftRowCenterY = positions[i].y + TILE_W / 2;
+          currLeftX = positions[i].x + positions[i].width + GAP;
         }
       } else if (dirLeft === "RIGHT") {
         countLeftInDir++;
         const isVert = isDouble;
         const w = isVert ? TILE_W : TILE_L;
         const h = isVert ? TILE_L : TILE_W;
-        const yOffset = isVert ? -(TILE_L - TILE_W) / 2 : 0;
 
         positions[i] = {
           tile: t,
           side: "LEFT",
           x: currLeftX,
-          y: currLeftY + yOffset,
+          y: leftRowCenterY - h / 2,
           width: w,
           height: h,
           isVertical: isVert,
-          val1: t[0],
-          val2: t[1],
+          val1: t[1],
+          val2: t[0],
         };
 
         currLeftX += (w + GAP);
@@ -305,11 +324,20 @@ export function DominoSnakeBoard({
     const lastLeftTile = positions[0];
     let leftTargetPos = { x: 0, y: 0 };
     if (lastLeftDir === "LEFT") {
-      leftTargetPos = { x: lastLeftTile.x - 56 - GAP, y: lastLeftTile.y };
+      leftTargetPos = {
+        x: lastLeftTile.x - 54 - GAP - 4,
+        y: lastLeftTile.y + (lastLeftTile.height - 32) / 2,
+      };
     } else if (lastLeftDir === "UP") {
-      leftTargetPos = { x: lastLeftTile.x, y: lastLeftTile.y - 40 - GAP };
+      leftTargetPos = {
+        x: lastLeftTile.x + (lastLeftTile.width - 54) / 2,
+        y: lastLeftTile.y - 32 - GAP - 6,
+      };
     } else {
-      leftTargetPos = { x: lastLeftTile.x + lastLeftTile.width + GAP + 6, y: lastLeftTile.y };
+      leftTargetPos = {
+        x: lastLeftTile.x + lastLeftTile.width + GAP + 4,
+        y: lastLeftTile.y + (lastLeftTile.height - 32) / 2,
+      };
     }
 
     // Compute bounding box

@@ -393,6 +393,7 @@ async function dealAndStartRound(
   roundNumber: number,
   players: Array<{ id: string; userId: string; displayName: string; seatIndex: number }>,
   isNewMatch = false,
+  previousWinnerPlayerId?: string | null,
 ) {
   const playerCount = players.length;
   let fullSet = generateFullDominoSet();
@@ -423,20 +424,27 @@ async function dealAndStartRound(
   const boneyard = shuffled.slice(playerCount * handSize);
 
   // Determine who opens the round:
-  // Find the player holding the highest double tile [6,6], [5,5], [4,4], etc.
+  // If there is a previous round winner, they start the next round!
+  // Otherwise (Round 1, new match, or draw), find the player holding the highest double tile [6,6], [5,5], etc.
   let starterPlayerId = players[0].id;
   let highestDouble = -1;
+  let winnerStarted = false;
 
-  for (let d = 6; d >= 0; d--) {
-    const targetDouble: DominoTile = [d, d];
-    const foundPlayer = players.find((p) => {
-      const hand = playerHands[p.id] || [];
-      return hand.some(([a, b]) => (a === d && b === d));
-    });
-    if (foundPlayer) {
-      starterPlayerId = foundPlayer.id;
-      highestDouble = d;
-      break;
+  if (previousWinnerPlayerId && players.some((p) => p.id === previousWinnerPlayerId)) {
+    starterPlayerId = previousWinnerPlayerId;
+    winnerStarted = true;
+  } else {
+    for (let d = 6; d >= 0; d--) {
+      const targetDouble: DominoTile = [d, d];
+      const foundPlayer = players.find((p) => {
+        const hand = playerHands[p.id] || [];
+        return hand.some(([a, b]) => a === d && b === d);
+      });
+      if (foundPlayer) {
+        starterPlayerId = foundPlayer.id;
+        highestDouble = d;
+        break;
+      }
     }
   }
 
@@ -473,14 +481,18 @@ async function dealAndStartRound(
     });
 
     const starter = players.find((p) => p.id === starterPlayerId);
+    const startDetails = winnerStarted
+      ? `Round ${roundNumber} started! ${starter?.displayName ?? "Player"} won the previous round and opens the game!`
+      : `Round ${roundNumber} started! ${starter?.displayName ?? "Player"} opens the game${
+          highestDouble >= 0 ? ` with double [${highestDouble}|${highestDouble}]` : ""
+        }.`;
+
     await tx.dominoRoomAction.create({
       data: {
         roomId,
         actorId: starterPlayerId,
         type: "START_ROUND",
-        details: `Round ${roundNumber} started! ${starter?.displayName ?? "Player"} opens the game${
-          highestDouble >= 0 ? ` with double [${highestDouble}|${highestDouble}]` : ""
-        }.`,
+        details: startDetails,
       },
     });
   });
@@ -1120,7 +1132,7 @@ export async function nextRoundDominoAction({
     throw new Error("Only the host can start the next round.");
   }
 
-  await dealAndStartRound(room.id, room.roundNumber + 1, room.players, false);
+  await dealAndStartRound(room.id, room.roundNumber + 1, room.players, false, room.roundWinnerId);
 }
 
 export async function replayDominoGameAction({
