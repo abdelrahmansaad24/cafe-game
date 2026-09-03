@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { PlayerBadge } from "@/components/player-badge";
 import { DominoTileView } from "@/components/domino-tile";
+import { DominoSnakeBoard } from "@/components/domino-snake-board";
 import { MobileTableRotation } from "@/components/mobile-table-rotation";
 import {
   BoardTile,
@@ -584,7 +585,7 @@ export default function DominoRoomClient({ roomCode }: { roomCode: string }) {
         )}
       </section>
 
-      {/* ACTIVE DOMINO FELT TABLE BOARD */}
+      {/* ACTIVE DOMINO FELT TABLE BOARD & INTEGRATED PLAYER DOCK */}
       {room.status !== "WAITING" && (
         <>
           <MobileTableRotation
@@ -595,223 +596,215 @@ export default function DominoRoomClient({ roomCode }: { roomCode: string }) {
           />
 
           <section
-            className={`relative rounded-3xl border-4 border-amber-950/40 bg-gradient-to-br from-emerald-900 via-emerald-950 to-stone-900 p-4 sm:p-6 shadow-2xl overflow-hidden min-h-[320px] flex flex-col justify-between transition-all duration-300 ${
+            className={`relative rounded-3xl border-4 border-yellow-400/80 bg-gradient-to-b from-[#153a7f] via-[#1a449c] to-[#0d2252] shadow-2xl overflow-hidden flex flex-col justify-between transition-all duration-300 w-full h-[calc(100dvh-100px)] min-h-[520px] max-h-[840px] select-none ${
               isTableRotated ? "table-force-landscape" : ""
             }`}
+            style={{
+              backgroundImage: `radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.08) 0%, transparent 80%), radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.05) 0%, transparent 60%)`,
+            }}
           >
-            {/* Top Board Info & Boneyard status */}
-            <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-emerald-100 font-medium z-10">
-              <div className="flex items-center gap-2">
-                <span className="rounded-xl bg-black/40 backdrop-blur-md px-3 py-1.5 border border-white/10">
-                  🀄 {t.boneyard}: <strong className="font-mono font-bold text-amber-300">{room.boneyardCount}</strong>
-                </span>
+            {/* TOP BAR: Scoreboard & Opponent Rack (Exact match to image aesthetic) */}
+            <div className="z-10 bg-[#0c1f47]/90 backdrop-blur-md border-b-2 border-yellow-400/90 px-3 py-2 flex flex-col">
+              <div className="flex items-center justify-between gap-2">
+                {/* Left: Back / Exit table button */}
+                <Link
+                  href={links.lobby}
+                  className="rounded-xl bg-white/10 hover:bg-white/20 p-2 text-white text-xs font-bold transition flex items-center gap-1 border border-white/15"
+                  title={t.back}
+                >
+                  <span>⚙️</span>
+                  <span className="hidden sm:inline">{t.back}</span>
+                </Link>
+
+                {/* Center: Score Display: YOU [score] - [score] OPPONENT */}
+                {(() => {
+                  const opponents = room.players.filter((p) => p.id !== selfPlayer.id);
+                  const primaryOpp = opponents[0];
+                  const oppScore =
+                    room.mode === "TEAMS"
+                      ? selfPlayer.team === "TEAM_A"
+                        ? room.teamBScore
+                        : room.teamAScore
+                      : primaryOpp?.score ?? 0;
+                  const oppName =
+                    room.mode === "TEAMS"
+                      ? selfPlayer.team === "TEAM_A"
+                        ? t.teamB
+                        : t.teamA
+                      : primaryOpp?.displayName ?? (lang === "ar" ? "الخصم" : "PLAYER 2");
+                  const myScore =
+                    room.mode === "TEAMS"
+                      ? selfPlayer.team === "TEAM_A"
+                        ? room.teamAScore
+                        : room.teamBScore
+                      : selfPlayer.score;
+
+                  return (
+                    <div className="flex items-center gap-3 sm:gap-5 px-3 py-1 rounded-2xl bg-black/40 border border-yellow-400/30 font-mono shadow-inner">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[11px] font-bold text-yellow-300">YOU</span>
+                        <span className="text-xl sm:text-2xl font-black text-white">{myScore}</span>
+                      </div>
+                      <div className="flex flex-col items-center">
+                        <span className="text-[9px] uppercase font-bold text-yellow-400/80">
+                          {room.roundNumber}st
+                        </span>
+                        <span className="text-sm font-black text-yellow-400 leading-none">—</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xl sm:text-2xl font-black text-white">{oppScore}</span>
+                        <span className="text-[11px] font-bold text-zinc-300 max-w-[80px] sm:max-w-[120px] truncate">
+                          {oppName}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Right: Boneyard status & Table rotation */}
+                <div className="flex items-center gap-2">
+                  <span className="rounded-xl bg-black/40 border border-white/15 px-2.5 py-1 text-xs text-yellow-300 font-bold font-mono">
+                    🀄 {room.boneyardCount}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setIsTableRotated(!isTableRotated)}
+                    className="rounded-xl bg-white/10 hover:bg-white/20 p-2 text-white text-xs font-bold transition border border-white/15 cursor-pointer"
+                    title="Rotate Table"
+                  >
+                    🔄
+                  </button>
+                </div>
               </div>
 
-              {/* Open Ends Badges */}
-              <div className="flex items-center gap-2">
-                <span className="rounded-xl bg-black/40 backdrop-blur-md px-3 py-1.5 border border-white/10 flex items-center gap-1.5">
-                  <span className="opacity-75">{t.leftEndBadge}:</span>
-                  <strong className="font-mono text-base font-black text-amber-400">
-                    {room.leftEnd !== null ? room.leftEnd : "—"}
-                  </strong>
-                </span>
-                <span className="rounded-xl bg-black/40 backdrop-blur-md px-3 py-1.5 border border-white/10 flex items-center gap-1.5">
-                  <span className="opacity-75">{t.rightEndBadge}:</span>
-                  <strong className="font-mono text-base font-black text-amber-400">
-                    {room.rightEnd !== null ? room.rightEnd : "—"}
-                  </strong>
-                </span>
+              {/* Opponent's Hand Rack Peeking Under the Gold Bar */}
+              <div className="flex items-center justify-center gap-1.5 pt-1.5 pb-0.5 overflow-hidden">
+                {room.players
+                  .filter((p) => p.id !== selfPlayer.id)
+                  .map((opp) => (
+                    <div key={opp.id} className="flex items-center gap-1">
+                      {Array.from({ length: Math.min(opp.tilesCount, 7) }).map((_, i) => (
+                        <div
+                          key={i}
+                          className="w-5 h-7 sm:w-6 sm:h-8 rounded-sm sm:rounded bg-gradient-to-b from-white to-slate-200 border border-slate-400 shadow-md flex items-center justify-center"
+                        >
+                          <div className="w-2.5 h-3.5 border border-slate-300 rounded-[1px] bg-slate-50/60" />
+                        </div>
+                      ))}
+                      {opp.tilesCount > 7 && (
+                        <span className="text-[10px] font-mono text-yellow-300 font-bold">
+                          +{opp.tilesCount - 7}
+                        </span>
+                      )}
+                    </div>
+                  ))}
               </div>
             </div>
 
-            {/* Played Tiles Chain on Felt Table */}
-            <div className="my-4 sm:my-6 py-4 px-2 overflow-x-auto no-scrollbar flex items-center justify-start sm:justify-center gap-2 min-h-[90px]">
-            {room.boardTiles.length === 0 ? (
-              selfPlayer.isMyTurn && selectedTile ? (
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => onPlaySelectedSide("LEFT")}
-                  className="mx-auto flex items-center gap-2 px-6 py-4 rounded-2xl border-2 border-dashed border-amber-300 bg-amber-400/25 text-amber-100 hover:bg-amber-400/40 hover:scale-105 active:scale-95 transition font-bold text-sm shadow-2xl animate-pulse cursor-pointer"
-                >
-                  <span className="text-xl">👇</span>
-                  <span>{t.playStart}</span>
-                  <span className="font-mono bg-black/40 px-2.5 py-0.5 rounded-lg text-amber-300 font-extrabold">
-                    [{selectedTile[0]}|{selectedTile[1]}]
+            {/* CENTER ARENA: Auto-Turning Domino Snake Board (ZERO SCROLL) */}
+            <div className="flex-1 min-h-0 relative p-2 sm:p-4 overflow-hidden flex items-center justify-center">
+              <DominoSnakeBoard
+                boardTiles={room.boardTiles}
+                selectedTile={selectedTile}
+                canPlayLeft={canSelectedPlayLeft}
+                canPlayRight={canSelectedPlayRight}
+                leftEnd={room.leftEnd}
+                rightEnd={room.rightEnd}
+                isMyTurn={selfPlayer.isMyTurn}
+                busy={busy}
+                onPlaySide={onPlaySelectedSide}
+                lang={lang}
+              />
+            </div>
+
+            {/* BOTTOM DOCK: Player's Hand on the Table (Exact match to image aesthetic) */}
+            <div className="z-10 bg-[#091a3e]/90 backdrop-blur-md border-t-2 border-yellow-400/80 p-2 sm:p-3 flex flex-col items-center">
+              {/* Turn Announcement & Actions Header */}
+              <div className="w-full flex flex-wrap items-center justify-between gap-2 mb-2 px-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-yellow-300/90">
+                    {lang === "ar" ? "أوراقك" : "Your Hand"} ({selfPlayer.hand.length})
                   </span>
-                </button>
-              ) : (
-                <p className="text-sm font-semibold text-emerald-200/80 italic text-center w-full py-8">
-                  {t.boardEmpty}
-                </p>
-              )
-            ) : (
-              <>
-                {/* Interactive Left End Target on Table */}
-                {selfPlayer.isMyTurn && selectedTile && canSelectedPlayLeft && (
+                  {selfPlayer.isMyTurn && (
+                    <span className="rounded-full bg-emerald-500 text-white px-2.5 py-0.5 text-[10px] font-black animate-pulse shadow-md">
+                      {t.yourTurn}
+                    </span>
+                  )}
+                </div>
+
+                {/* Draw / Pass Actions */}
+                {selfPlayer.isMyTurn && (
+                  <div className="flex items-center gap-2">
+                    {canDraw && (
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={onDrawTile}
+                        className="rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 px-3 py-1.5 text-xs font-black text-zinc-950 hover:brightness-110 active:scale-95 transition cursor-pointer shadow-lg"
+                      >
+                        📥 {t.drawTile} ({room.boneyardCount})
+                      </button>
+                    )}
+                    {canPass && (
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={onPassTurn}
+                        className="rounded-xl bg-zinc-800 hover:bg-zinc-700 px-3 py-1.5 text-xs font-black text-white active:scale-95 transition cursor-pointer border border-white/20 shadow-md"
+                      >
+                        ⏭️ {t.passTurn}
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Selected Tile Helper Indicator */}
+              {selfPlayer.isMyTurn && selectedTile && (
+                <div className="w-full mb-2 flex items-center justify-between px-3 py-1.5 rounded-xl bg-yellow-400/20 border border-yellow-400/40 text-xs text-yellow-200">
+                  <div className="flex items-center gap-2 font-bold truncate">
+                    <span>🎯 {t.selectedTilePrompt}:</span>
+                    <span className="font-mono font-black text-sm bg-black/40 px-2 py-0.5 rounded text-yellow-300">
+                      [{selectedTile[0]}|{selectedTile[1]}]
+                    </span>
+                    <span className="font-normal opacity-90 hidden sm:inline">— {t.playOnTablePrompt}</span>
+                  </div>
                   <button
                     type="button"
-                    disabled={busy}
-                    onClick={() => onPlaySelectedSide("LEFT")}
-                    className="shrink-0 flex flex-col items-center justify-center px-3 py-2 rounded-xl border-2 border-dashed border-amber-300 bg-amber-400/30 text-amber-100 hover:bg-amber-400/50 hover:scale-105 active:scale-95 transition cursor-pointer shadow-xl animate-pulse"
-                    title={t.playLeft}
+                    onClick={() => setSelectedTile(null)}
+                    className="shrink-0 px-2 py-0.5 rounded-lg border border-yellow-400/40 hover:bg-yellow-400/20 text-xs font-semibold cursor-pointer transition"
                   >
-                    <span className="text-sm font-black">👈 {t.playLeft}</span>
-                    <span className="text-xs font-mono font-bold text-amber-200">[{room.leftEnd}]</span>
+                    {t.cancel}
                   </button>
-                )}
+                </div>
+              )}
 
-                {/* Domino tiles chain */}
-                {room.boardTiles.map((bt, idx) => {
-                  const isDouble = bt.tile[0] === bt.tile[1];
+              {/* Domino Tiles in Player's Hand (All fit in one row, ZERO scroll) */}
+              <div className="w-full flex items-center justify-center gap-1.5 sm:gap-2.5 pb-1 overflow-x-hidden">
+                {selfPlayer.hand.map((tile, idx) => {
+                  const playability = isTilePlayable(tile, room.leftEnd, room.rightEnd);
+                  const playableNow = selfPlayer.isMyTurn && playability.isPlayable;
+                  const isSelected =
+                    selectedTile !== null &&
+                    selectedTile[0] === tile[0] &&
+                    selectedTile[1] === tile[1];
+
                   return (
                     <DominoTileView
                       key={idx}
-                      tile={bt.tile}
-                      orientation={isDouble ? "vertical" : "horizontal"}
-                      size="sm"
-                      className="shadow-xl"
+                      tile={tile}
+                      orientation="vertical"
+                      size="responsive"
+                      isPlayable={playableNow}
+                      isSelected={isSelected}
+                      onClick={() => onTileClick(tile)}
                     />
                   );
                 })}
-
-                {/* Interactive Right End Target on Table */}
-                {selfPlayer.isMyTurn && selectedTile && canSelectedPlayRight && (
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => onPlaySelectedSide("RIGHT")}
-                    className="shrink-0 flex flex-col items-center justify-center px-3 py-2 rounded-xl border-2 border-dashed border-amber-300 bg-amber-400/30 text-amber-100 hover:bg-amber-400/50 hover:scale-105 active:scale-95 transition cursor-pointer shadow-xl animate-pulse"
-                    title={t.playRight}
-                  >
-                    <span className="text-sm font-black">{t.playRight} 👉</span>
-                    <span className="text-xs font-mono font-bold text-amber-200">[{room.rightEnd}]</span>
-                  </button>
-                )}
-              </>
-            )}
-          </div>
-
-          {/* Opponents Hands Summary Bar */}
-          <div className="flex flex-wrap items-center justify-center gap-4 z-10 border-t border-white/10 pt-3">
-            {room.players
-              .filter((p) => p.id !== selfPlayer.id)
-              .map((opp) => {
-                const isTurn = opp.id === room.currentTurnPlayerId;
-                return (
-                  <div
-                    key={opp.id}
-                    className={`flex items-center gap-2 rounded-2xl px-3 py-1.5 transition ${
-                      isTurn
-                        ? "bg-amber-400 text-zinc-950 font-bold shadow-lg ring-2 ring-amber-300"
-                        : "bg-black/40 text-white/90 border border-white/10"
-                    }`}
-                  >
-                    <span className="text-xs">{opp.displayName}</span>
-                    <div className="flex items-center gap-1">
-                      <DominoTileView tile={[0, 0]} size="sm" faceDown />
-                      <span className="font-mono font-bold text-xs">×{opp.tilesCount}</span>
-                    </div>
-                  </div>
-                );
-              })}
-          </div>
-        </section>
+              </div>
+            </div>
+          </section>
         </>
-      )}
-
-      {/* PLAYER'S HAND & TURN CONTROLS TRAY */}
-      {room.status === "PLAYING" && room.currentPhase === "PLAYING" && (
-        <section
-          className={`rounded-3xl border-2 p-5 sm:p-6 shadow-xl transition ${
-            selfPlayer.isMyTurn
-              ? "border-emerald-500 bg-emerald-500/10 dark:bg-emerald-950/30 ring-2 ring-emerald-500/20"
-              : "border-zinc-200 dark:border-zinc-800 bg-white/90 dark:bg-zinc-900/90"
-          }`}
-        >
-          <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold uppercase text-zinc-600 dark:text-zinc-400 tracking-wider">
-                Your Hand ({selfPlayer.hand.length} tiles)
-              </span>
-              {selfPlayer.isMyTurn && (
-                <span className="rounded-full bg-emerald-600 text-white px-3 py-0.5 text-xs font-black animate-pulse">
-                  {t.yourTurn}
-                </span>
-              )}
-            </div>
-
-            {/* Action Buttons: Draw or Pass */}
-            {selfPlayer.isMyTurn && (
-              <div className="flex items-center gap-2">
-                {canDraw && (
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={onDrawTile}
-                    className="rounded-xl bg-amber-500 px-4 py-2 text-xs font-bold text-white hover:bg-amber-400 transition cursor-pointer shadow-md"
-                  >
-                    📥 {t.drawTile} ({room.boneyardCount})
-                  </button>
-                )}
-                {canPass && (
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={onPassTurn}
-                    className="rounded-xl bg-zinc-900 dark:bg-zinc-100 px-4 py-2 text-xs font-bold text-white dark:text-zinc-900 hover:opacity-90 transition cursor-pointer shadow-md"
-                  >
-                    ⏭️ {t.passTurn}
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Selected Tile Helper Indicator */}
-          {selfPlayer.isMyTurn && selectedTile && (
-            <div className="mb-4 flex items-center justify-between p-3 rounded-2xl bg-amber-400/15 border border-amber-400/30 text-xs text-amber-900 dark:text-amber-200 animate-in fade-in duration-150">
-              <div className="flex flex-wrap items-center gap-2 font-bold">
-                <span>🎯 {t.selectedTilePrompt}:</span>
-                <span className="font-mono font-black text-sm bg-black/20 dark:bg-black/40 px-2 py-0.5 rounded text-amber-700 dark:text-amber-300">
-                  [{selectedTile[0]}|{selectedTile[1]}]
-                </span>
-                <span className="font-normal opacity-90">— {t.playOnTablePrompt}</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setSelectedTile(null)}
-                className="shrink-0 px-2.5 py-1 rounded-xl border border-amber-400/40 hover:bg-amber-400/20 text-xs font-semibold cursor-pointer transition"
-              >
-                {t.cancel}
-              </button>
-            </div>
-          )}
-
-          {/* Tiles in Player Hand */}
-          <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 py-2">
-            {selfPlayer.hand.map((tile, idx) => {
-              const playability = isTilePlayable(tile, room.leftEnd, room.rightEnd);
-              const playableNow = selfPlayer.isMyTurn && playability.isPlayable;
-              const isSelected =
-                selectedTile !== null &&
-                selectedTile[0] === tile[0] &&
-                selectedTile[1] === tile[1];
-
-              return (
-                <DominoTileView
-                  key={idx}
-                  tile={tile}
-                  orientation="vertical"
-                  size="md"
-                  isPlayable={playableNow}
-                  isSelected={isSelected}
-                  onClick={() => onTileClick(tile)}
-                />
-              );
-            })}
-          </div>
-        </section>
       )}
 
       {/* ROUND OVER / MATCH CHAMPION NOTIFICATION */}

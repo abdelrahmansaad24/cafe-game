@@ -5,7 +5,7 @@ import { DominoTile } from "@/lib/games/domino-types";
 interface DominoTileViewProps {
   tile: DominoTile;
   orientation?: "vertical" | "horizontal";
-  size?: "sm" | "md" | "lg";
+  size?: "xs" | "sm" | "md" | "lg" | "responsive";
   isPlayable?: boolean;
   isSelected?: boolean;
   onClick?: () => void;
@@ -31,12 +31,12 @@ function renderPips(value: number, dotSizeClass: string) {
   const active = activeCells[value] || [];
 
   return (
-    <div className="grid grid-cols-3 grid-rows-3 h-full w-full p-1 place-items-center">
+    <div className="grid grid-cols-3 grid-rows-3 h-full w-full p-1 place-items-center pointer-events-none select-none">
       {[0, 1, 2, 3, 4, 5, 6, 7, 8].map((cellIdx) => (
         <div key={cellIdx} className="h-full w-full flex items-center justify-center">
           {active.includes(cellIdx) ? (
             <span
-              className={`rounded-full bg-zinc-950 dark:bg-amber-300 shadow-sm ${dotSizeClass}`}
+              className={`rounded-full bg-zinc-950 shadow-inner ${dotSizeClass}`}
             />
           ) : null}
         </div>
@@ -58,23 +58,37 @@ export function DominoTileView({
   const [val1, val2] = tile;
 
   const sizeConfigs = {
-    sm: {
-      vert: "w-9 h-18 rounded-md",
-      horiz: "w-18 h-9 rounded-md",
+    xs: {
+      vert: "w-7 h-14 rounded-md",
+      horiz: "w-14 h-7 rounded-md",
       dot: "w-1.5 h-1.5",
       dividerVert: "h-[1.5px] w-full",
       dividerHoriz: "w-[1.5px] h-full",
     },
+    sm: {
+      vert: "w-9 h-18 rounded-lg",
+      horiz: "w-18 h-9 rounded-lg",
+      dot: "w-1.5 h-1.5",
+      dividerVert: "h-[1.5px] w-full",
+      dividerHoriz: "w-[1.5px] h-full",
+    },
+    responsive: {
+      vert: "w-[clamp(2.3rem,6.8vw,3.4rem)] h-[clamp(4.6rem,13.6vw,6.8rem)] rounded-xl",
+      horiz: "w-[clamp(4.6rem,13.6vw,6.8rem)] h-[clamp(2.3rem,6.8vw,3.4rem)] rounded-xl",
+      dot: "w-[clamp(0.35rem,1.1vw,0.55rem)] h-[clamp(0.35rem,1.1vw,0.55rem)]",
+      dividerVert: "h-[2px] w-full",
+      dividerHoriz: "w-[2px] h-full",
+    },
     md: {
-      vert: "w-12 h-24 rounded-lg",
-      horiz: "w-24 h-12 rounded-lg",
+      vert: "w-12 h-24 rounded-xl",
+      horiz: "w-24 h-12 rounded-xl",
       dot: "w-2 h-2",
       dividerVert: "h-[2px] w-full",
       dividerHoriz: "w-[2px] h-full",
     },
     lg: {
-      vert: "w-14 h-28 rounded-xl",
-      horiz: "w-28 h-14 rounded-xl",
+      vert: "w-14 h-28 rounded-2xl",
+      horiz: "w-28 h-14 rounded-2xl",
       dot: "w-2.5 h-2.5",
       dividerVert: "h-[2px] w-full",
       dividerHoriz: "w-[2px] h-full",
@@ -87,11 +101,13 @@ export function DominoTileView({
   if (faceDown) {
     return (
       <div
-        className={`shrink-0 border border-zinc-300 dark:border-zinc-700 bg-gradient-to-br from-amber-700/80 to-amber-900/90 shadow-md ${
+        className={`shrink-0 border-2 border-slate-300/80 bg-gradient-to-br from-white via-slate-100 to-slate-200 shadow-md ${
           isVert ? conf.vert : conf.horiz
-        } flex items-center justify-center ${className}`}
+        } flex items-center justify-center relative overflow-hidden ${className}`}
       >
-        <span className="text-amber-200/50 text-xs font-bold font-mono">🀄</span>
+        <div className="w-3/4 h-3/4 rounded-md border border-slate-300/60 bg-slate-50/50 flex items-center justify-center">
+          <span className="text-slate-400 text-[10px] font-bold">🀄</span>
+        </div>
       </div>
     );
   }
@@ -99,15 +115,19 @@ export function DominoTileView({
   return (
     <div
       onClick={onClick}
-      className={`relative shrink-0 select-none transition ${
+      className={`relative shrink-0 select-none transition-all duration-150 ${
         isVert ? conf.vert : conf.horiz
       } ${
         isVert ? "flex flex-col" : "flex flex-row"
-      } border-2 border-zinc-300/90 dark:border-zinc-700 bg-gradient-to-b from-stone-50 via-zinc-100 to-stone-200 dark:from-zinc-900 dark:via-zinc-900 dark:to-zinc-950 shadow-md ${
+      } border-2 border-slate-300 bg-gradient-to-b from-white via-[#faf8f4] to-[#ede7db] shadow-lg ${
         isPlayable
-          ? "ring-2 ring-emerald-500 shadow-emerald-500/20 cursor-pointer hover:scale-105 active:scale-95"
+          ? "ring-2 ring-emerald-400 shadow-emerald-500/30 cursor-pointer hover:scale-105 active:scale-95"
           : ""
-      } ${isSelected ? "ring-2 ring-indigo-500 scale-105 shadow-indigo-500/30" : ""} ${className}`}
+      } ${
+        isSelected
+          ? "ring-4 ring-amber-400 scale-105 -translate-y-2 shadow-2xl shadow-amber-500/40"
+          : ""
+      } ${className}`}
     >
       {/* Side 1 */}
       <div className="flex-1 flex items-center justify-center relative">
