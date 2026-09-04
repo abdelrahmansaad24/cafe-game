@@ -1,7 +1,18 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { z } from "zod";
+
 import { hashPassword } from "@/lib/password";
-import { resetPasswordSchema } from "@/lib/validation/auth";
+import { prisma } from "@/lib/prisma";
+import { normalizePhoneNumber } from "@/lib/sms";
+
+const resetPasswordSchema = z.object({
+  phone: z.string().trim().min(8, "Phone number is required."),
+  otpCode: z.string().trim().length(6, "Verification code must be 6 digits."),
+  newPassword: z
+    .string()
+    .min(8, "Password must be at least 8 characters long.")
+    .max(128, "Password cannot exceed 128 characters."),
+});
 
 export async function POST(request: Request) {
   try {
@@ -12,93 +23,82 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid JSON payload." }, { status: 400 });
     }
 
-    const parsedPayload = resetPasswordSchema.safeParse(payload);
-    if (!parsedPayload.success) {
+    const parsed = resetPasswordSchema.safeParse(payload);
+    if (!parsed.success) {
       return NextResponse.json(
         {
-          error: "Invalid reset details.",
-          issues: parsedPayload.error.flatten().fieldErrors,
+          error: "Invalid input data.",
+          issues: parsed.error.flatten().fieldErrors,
         },
         { status: 400 },
       );
     }
 
-    const email = parsedPayload.data.email.toLowerCase().trim();
-    const token = parsedPayload.data.token;
-    const identifier = `password-reset:${email}`;
+    const { phone: rawPhone, otpCode, newPassword } = parsed.data;
+    const phone = normalizePhoneNumber(rawPhone);
 
-    const record = await prisma.verificationToken.findUnique({
+    const identifier = `reset_phone_${phone}`;
+
+    // 1. Verify OTP token
+    const tokenRecord = await prisma.verificationToken.findFirst({
       where: {
-        identifier_token: {
-          identifier,
-          token,
-        },
+        identifier,
+        token: otpCode,
       },
     });
 
-    if (!record) {
+    if (!tokenRecord) {
       return NextResponse.json(
-        { error: "This password reset link is invalid or has already been used." },
+        { error: "Incorrect verification code. Please check your WhatsApp and try again." },
         { status: 400 },
       );
     }
 
-    if (new Date() > record.expires) {
-      // Token has expired; clean it up
-      await prisma.verificationToken.delete({
-        where: {
-          identifier_token: {
-            identifier,
-            token,
-          },
-        },
+    if (new Date(tokenRecord.expires) < new Date()) {
+      await prisma.verificationToken.deleteMany({
+        where: { identifier },
       });
       return NextResponse.json(
-        { error: "This password reset link has expired. Please request a new one." },
+        { error: "Verification code has expired. Please request a new code." },
         { status: 400 },
       );
     }
 
-    // User must exist
-    const user = await prisma.user.findUnique({
-      where: { email },
+    // 2. Find user
+    const user = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { phone },
+          { email: `${phone}@phone.cafegames` },
+        ],
+      },
       select: { id: true },
     });
 
     if (!user) {
-      return NextResponse.json(
-        { error: "No account found with this email address." },
-        { status: 404 },
-      );
+      return NextResponse.json({ error: "User account not found." }, { status: 404 });
     }
 
-    // Hash the new password
-    const passwordHash = await hashPassword(parsedPayload.data.password);
-
-    // Update password
+    // 3. Hash and update password
+    const passwordHash = await hashPassword(newPassword);
     await prisma.user.update({
-      where: { email },
+      where: { id: user.id },
       data: { passwordHash },
     });
 
-    // Clean up consumed token
-    await prisma.verificationToken.delete({
-      where: {
-        identifier_token: {
-          identifier,
-          token,
-        },
-      },
+    // 4. Invalidate used token
+    await prisma.verificationToken.deleteMany({
+      where: { identifier },
     });
 
     return NextResponse.json({
       ok: true,
-      message: "Your password has been successfully reset! You can now sign in.",
+      message: "Password updated successfully. You can now sign in with your new password.",
     });
   } catch (error) {
-    console.error("Reset password failed:", error);
+    console.error("[ResetPassword Error]:", error);
     return NextResponse.json(
-      { error: "Failed to reset password. Please try again or contact support." },
+      { error: "Could not reset password. Please try again later." },
       { status: 500 },
     );
   }

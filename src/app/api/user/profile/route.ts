@@ -1,8 +1,34 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
+
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
 import { hashPassword, verifyPassword } from "@/lib/password";
-import { updateProfileSchema } from "@/lib/validation/auth";
+import { prisma } from "@/lib/prisma";
+import { normalizePhoneNumber } from "@/lib/sms";
+
+const updateProfileSchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(2, "Name must be at least 2 characters.")
+    .max(80, "Name must be 80 characters or fewer.")
+    .optional(),
+  phone: z.string().trim().optional(),
+  image: z
+    .string()
+    .trim()
+    .refine(
+      (val) => val === "" || /^https?:\/\/.+/i.test(val),
+      "Profile image must be a valid http or https URL link.",
+    )
+    .optional(),
+  currentPassword: z.string().optional(),
+  newPassword: z
+    .string()
+    .min(8, "New password must be at least 8 characters long.")
+    .max(128, "New password cannot exceed 128 characters.")
+    .optional(),
+});
 
 export async function GET() {
   const session = await auth();
@@ -15,27 +41,29 @@ export async function GET() {
     select: {
       id: true,
       name: true,
+      phone: true,
       email: true,
       image: true,
       role: true,
-      passwordHash: true,
       createdAt: true,
+      passwordHash: true,
     },
   });
 
   if (!user) {
-    return NextResponse.json({ error: "User not found." }, { status: 404 });
+    return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
 
   return NextResponse.json({
     user: {
       id: user.id,
       name: user.name,
+      phone: user.phone,
       email: user.email,
       image: user.image,
       role: user.role,
-      hasPassword: Boolean(user.passwordHash),
       createdAt: user.createdAt,
+      hasPassword: Boolean(user.passwordHash),
     },
   });
 }
@@ -54,47 +82,64 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: "Invalid JSON payload." }, { status: 400 });
     }
 
-    const parsedPayload = updateProfileSchema.safeParse(payload);
-    if (!parsedPayload.success) {
+    const parsed = updateProfileSchema.safeParse(payload);
+    if (!parsed.success) {
       return NextResponse.json(
         {
-          error: "Invalid profile data.",
-          issues: parsedPayload.error.flatten().fieldErrors,
+          error: "Invalid input data.",
+          issues: parsed.error.flatten().fieldErrors,
         },
         { status: 400 },
       );
     }
 
-    const { name, image, currentPassword, newPassword } = parsedPayload.data;
+    const { name, phone: rawPhone, image, currentPassword, newPassword } = parsed.data;
 
-    const existingUser = await prisma.user.findUnique({
+    const currentUser = await prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { id: true, passwordHash: true },
+      select: { id: true, passwordHash: true, phone: true },
     });
 
-    if (!existingUser) {
-      return NextResponse.json({ error: "User not found." }, { status: 404 });
+    if (!currentUser) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
     const updateData: {
-      name?: string | null;
+      name?: string;
+      phone?: string;
       image?: string | null;
       passwordHash?: string;
     } = {};
 
-    // Update name
     if (name !== undefined) {
-      updateData.name = name.trim() || null;
+      updateData.name = name;
     }
 
-    // Update image link (link only, no file upload)
+    if (rawPhone !== undefined && rawPhone.trim()) {
+      const normalized = normalizePhoneNumber(rawPhone);
+      if (normalized && normalized !== currentUser.phone) {
+        // Check if phone already taken
+        const phoneTaken = await prisma.user.findFirst({
+          where: { phone: normalized, NOT: { id: session.user.id } },
+          select: { id: true },
+        });
+        if (phoneTaken) {
+          return NextResponse.json(
+            { error: "This WhatsApp number is already in use by another account." },
+            { status: 409 },
+          );
+        }
+        updateData.phone = normalized;
+      }
+    }
+
     if (image !== undefined) {
-      updateData.image = image.trim() || null;
+      updateData.image = image.trim() === "" ? null : image.trim();
     }
 
-    // Update password if requested
-    if (newPassword && newPassword.trim().length > 0) {
-      if (existingUser.passwordHash) {
+    // Password change logic
+    if (newPassword) {
+      if (currentUser.passwordHash) {
         if (!currentPassword) {
           return NextResponse.json(
             { error: "Current password is required to set a new password." },
@@ -104,12 +149,12 @@ export async function PATCH(request: Request) {
 
         const isCurrentValid = await verifyPassword(
           currentPassword,
-          existingUser.passwordHash,
+          currentUser.passwordHash,
         );
 
         if (!isCurrentValid) {
           return NextResponse.json(
-            { error: "The current password you entered is incorrect." },
+            { error: "Incorrect current password." },
             { status: 400 },
           );
         }
@@ -124,21 +169,23 @@ export async function PATCH(request: Request) {
       select: {
         id: true,
         name: true,
+        phone: true,
         email: true,
         image: true,
         role: true,
+        updatedAt: true,
       },
     });
 
     return NextResponse.json({
       ok: true,
-      message: "Profile updated successfully!",
+      message: "Profile updated successfully.",
       user: updatedUser,
     });
   } catch (error) {
-    console.error("Profile update failed:", error);
+    console.error("[ProfileUpdate] Error occurred:", error);
     return NextResponse.json(
-      { error: "Failed to update profile. Please try again." },
+      { error: "Could not update profile. Please try again." },
       { status: 500 },
     );
   }

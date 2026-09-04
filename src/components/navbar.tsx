@@ -71,19 +71,19 @@ export async function Navbar() {
             <div className="flex items-center gap-2 sm:gap-3">
               <Link
                 href="/profile"
-                className="flex items-center gap-2 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 px-2.5 py-1.5 text-xs font-semibold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition"
+                className="inline-flex items-center gap-2 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 px-2.5 py-1 text-xs font-semibold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition shadow-xs"
                 title="Edit Profile"
               >
                 {session.user.image ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={session.user.image}
-                    alt={session.user.name || "Avatar"}
-                    className="h-5 w-5 rounded-full object-cover ring-1 ring-indigo-500/50"
+                    alt=""
+                    className="h-5 w-5 rounded-full object-cover border border-zinc-300 dark:border-zinc-700"
                   />
                 ) : (
-                  <span className="h-5 w-5 rounded-full bg-indigo-100 dark:bg-indigo-950 flex items-center justify-center text-[10px] text-indigo-700 dark:text-indigo-300 font-bold">
-                    {session.user.name ? session.user.name[0].toUpperCase() : "👤"}
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-indigo-600 text-[10px] font-bold text-white">
+                    {(session.user.name || session.user.email || "U").slice(0, 1).toUpperCase()}
                   </span>
                 )}
                 <span className="hidden sm:inline">

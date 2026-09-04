@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { hashPassword } from "@/lib/password";
 import { prisma } from "@/lib/prisma";
 import { signupSchema } from "@/lib/validation/auth";
-import { sendWelcomeEmail } from "@/lib/email";
+import { normalizePhoneNumber } from "@/lib/sms";
 
 export async function POST(request: Request) {
   try {
@@ -25,33 +25,75 @@ export async function POST(request: Request) {
       );
     }
 
-    const existingUser = await prisma.user.findUnique({
-      where: { email: parsedPayload.data.email },
+    const { phone: rawPhone, otpCode, password, name } = parsedPayload.data;
+    const phone = normalizePhoneNumber(rawPhone);
+
+    if (!phone || phone.length < 9) {
+      return NextResponse.json(
+        { error: "Please enter a valid phone number (e.g. 01xxxxxxxxx or +201xxxxxxxxx)." },
+        { status: 400 },
+      );
+    }
+
+    // 1. Verify OTP code
+    const identifier = `phone_${phone}`;
+    const tokenRecord = await prisma.verificationToken.findFirst({
+      where: {
+        identifier,
+        token: otpCode,
+      },
+    });
+
+    if (!tokenRecord) {
+      return NextResponse.json(
+        { error: "Incorrect verification code. Please check your WhatsApp and try again." },
+        { status: 400 },
+      );
+    }
+
+    if (new Date(tokenRecord.expires) < new Date()) {
+      await prisma.verificationToken.deleteMany({
+        where: { identifier },
+      });
+      return NextResponse.json(
+        { error: "Verification code has expired. Please request a new code." },
+        { status: 400 },
+      );
+    }
+
+    // 2. Check if phone is already registered
+    const existingUser = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { phone },
+          { email: `${phone}@phone.cafegames` },
+        ],
+      },
       select: { id: true },
     });
+
     if (existingUser) {
       return NextResponse.json(
-        { error: "An account with this email already exists." },
+        { error: "An account with this WhatsApp number already exists. Please sign in." },
         { status: 409 },
       );
     }
 
-    const passwordHash = await hashPassword(parsedPayload.data.password);
+    // 3. Hash password and create user
+    const passwordHash = await hashPassword(password);
     await prisma.user.create({
       data: {
-        email: parsedPayload.data.email,
-        name: parsedPayload.data.name ?? null,
+        phone,
+        email: `${phone}@phone.cafegames`,
+        name: name ?? null,
         passwordHash,
       },
       select: { id: true },
     });
 
-    // Send welcome email via Mailtrap (non-blocking / resilient)
-    sendWelcomeEmail({
-      email: parsedPayload.data.email,
-      name: parsedPayload.data.name,
-    }).catch((emailErr) => {
-      console.error("Non-fatal: failed to send welcome email:", emailErr);
+    // 4. Invalidate used OTP token
+    await prisma.verificationToken.deleteMany({
+      where: { identifier },
     });
 
     return NextResponse.json({ ok: true }, { status: 201 });

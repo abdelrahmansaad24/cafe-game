@@ -8,37 +8,53 @@ import { verifyPassword } from "@/lib/password";
 import { prisma } from "@/lib/prisma";
 import { loginSchema } from "@/lib/validation/auth";
 
+import { normalizePhoneNumber } from "@/lib/sms";
+
 const providers = [
   Credentials({
-    name: "Email and Password",
+    name: "WhatsApp Phone or Email",
     credentials: {
-      email: { label: "Email", type: "email" },
+      phoneOrEmail: { label: "WhatsApp Phone or Email", type: "text" },
+      email: { label: "Email (Legacy)", type: "text" },
       password: { label: "Password", type: "password" },
     },
     authorize: async (credentials) => {
-      const parsedCredentials = loginSchema.safeParse(credentials);
-      if (!parsedCredentials.success) {
+      const rawInput = (
+        (credentials as Record<string, string>)?.phoneOrEmail ||
+        (credentials as Record<string, string>)?.email ||
+        (credentials as Record<string, string>)?.phone ||
+        ""
+      ).trim();
+      const password = (credentials as Record<string, string>)?.password || "";
+
+      if (!rawInput || !password) {
         return null;
       }
 
-      const user = await prisma.user.findUnique({
-        where: { email: parsedCredentials.data.email },
+      const normalizedPhone = normalizePhoneNumber(rawInput);
+
+      const user = await prisma.user.findFirst({
+        where: {
+          OR: [
+            ...(normalizedPhone ? [{ phone: normalizedPhone }] : []),
+            { email: rawInput.toLowerCase() },
+            ...(normalizedPhone ? [{ email: `${normalizedPhone}@phone.cafegames` }] : []),
+          ],
+        },
       });
+
       if (!user || !user.passwordHash) {
         return null;
       }
 
-      const isValid = await verifyPassword(
-        parsedCredentials.data.password,
-        user.passwordHash,
-      );
+      const isValid = await verifyPassword(password, user.passwordHash);
       if (!isValid) {
         return null;
       }
 
       return {
         id: user.id,
-        email: user.email,
+        email: user.email || user.phone || `${user.id}@cafegames.local`,
         name: user.name,
         image: user.image,
       };
@@ -69,27 +85,15 @@ export const authOptions: NextAuthOptions = {
   },
   providers: typedProviders,
   callbacks: {
-    jwt: async ({ token, user, trigger, session }) => {
+    jwt: ({ token, user }) => {
       if (user?.id) {
         token.sub = user.id;
-        token.name = user.name;
-        token.picture = user.image;
-      }
-      if (trigger === "update" && session) {
-        if (session.name !== undefined) token.name = session.name;
-        if (session.image !== undefined) token.picture = session.image;
       }
       return token;
     },
     session: ({ session, token }) => {
       if (session.user && token.sub) {
         session.user.id = token.sub;
-        if (token.name !== undefined) {
-          session.user.name = token.name;
-        }
-        if (token.picture !== undefined) {
-          session.user.image = token.picture;
-        }
       }
       return session;
     },

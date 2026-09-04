@@ -43,10 +43,14 @@ const envSchema = z.object({
   ENABLE_GOOGLE_OAUTH: booleanString.default(false),
   AUTH_GOOGLE_ID: z.string().min(1, "AUTH_GOOGLE_ID is required.").optional(),
   AUTH_GOOGLE_SECRET: z.string().min(1, "AUTH_GOOGLE_SECRET is required.").optional(),
-  MAILTRAP_TOKEN: z.string().optional(),
-  MAILTRAP_SENDER_EMAIL: z.string().email().default("hello@demomailtrap.co"),
+  MAILTRAP_TOKEN: z.string().default("ed06c46b145e7e146c05aa83b73d4476"),
+  MAILTRAP_SENDER_EMAIL: z.string().default("hello@demomailtrap.co"),
   MAILTRAP_SENDER_NAME: z.string().default("Cafe Games"),
-  APP_URL: z.string().url().default("http://localhost:3000"),
+  APP_URL: z.string().default("http://localhost:3000"),
+  RAPIDAPI_KEY: z.string().default("b11dad0d71msh1756e7c1538015dp161a84jsndec32d3224f9"),
+  RAPIDAPI_HOST: z.string().default("reminderofme.p.rapidapi.com"),
+  WPPSERVER_URL: z.string().default("http://localhost:8786"),
+  WPPSERVER_TOKEN: z.string().optional(),
 });
 
 const parsedEnv = envSchema.parse({
@@ -66,10 +70,14 @@ const parsedEnv = envSchema.parse({
   ENABLE_GOOGLE_OAUTH: process.env.ENABLE_GOOGLE_OAUTH ?? "false",
   AUTH_GOOGLE_ID: process.env.AUTH_GOOGLE_ID,
   AUTH_GOOGLE_SECRET: process.env.AUTH_GOOGLE_SECRET,
-  MAILTRAP_TOKEN: process.env.MAILTRAP_TOKEN,
+  MAILTRAP_TOKEN: process.env.MAILTRAP_TOKEN ?? "ed06c46b145e7e146c05aa83b73d4476",
   MAILTRAP_SENDER_EMAIL: process.env.MAILTRAP_SENDER_EMAIL ?? "hello@demomailtrap.co",
   MAILTRAP_SENDER_NAME: process.env.MAILTRAP_SENDER_NAME ?? "Cafe Games",
-  APP_URL: process.env.APP_URL ?? process.env.NEXTAUTH_URL ?? "http://localhost:3000",
+  APP_URL: process.env.APP_URL ?? "http://localhost:3000",
+  RAPIDAPI_KEY: process.env.RAPIDAPI_KEY ?? "b11dad0d71msh1756e7c1538015dp161a84jsndec32d3224f9",
+  RAPIDAPI_HOST: process.env.RAPIDAPI_HOST ?? "reminderofme.p.rapidapi.com",
+  WPPSERVER_URL: process.env.WPPSERVER_URL ?? "http://localhost:8786",
+  WPPSERVER_TOKEN: process.env.WPPSERVER_TOKEN,
 });
 
 if (process.env.NODE_ENV === "production") {

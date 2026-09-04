@@ -4,13 +4,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 import { signIn } from "next-auth/react";
-import { featureFlags } from "@/lib/feature-flags";
 
 export default function LoginPage() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const oauthEnabled = featureFlags.googleOAuthEnabled;
 
   async function onCredentialsSignIn(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -18,18 +16,18 @@ export default function LoginPage() {
     setIsSubmitting(true);
 
     const formData = new FormData(event.currentTarget);
-    const email = String(formData.get("email") ?? "");
+    const phoneOrEmail = String(formData.get("phoneOrEmail") ?? "").trim();
     const password = String(formData.get("password") ?? "");
 
     const result = await signIn("credentials", {
-      email,
+      phoneOrEmail,
       password,
       redirect: false,
     });
 
     setIsSubmitting(false);
     if (result?.error) {
-      setError("Invalid email or password.");
+      setError("Invalid WhatsApp phone number or password.");
       return;
     }
 
@@ -37,53 +35,40 @@ export default function LoginPage() {
     router.refresh();
   }
 
-  async function onGoogleSignIn() {
-    setError(null);
-    await signIn("google", { callbackUrl: "/dashboard" });
-  }
-
   return (
     <main className="mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-md flex-col justify-center px-4 sm:px-6 py-12">
       <div className="rounded-3xl border border-zinc-200 dark:border-zinc-800 bg-white/90 dark:bg-zinc-900/90 p-7 shadow-sm backdrop-blur-md">
-        <h1 className="text-2xl sm:text-3xl font-extrabold text-zinc-900 dark:text-zinc-50">Sign in</h1>
-        <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">Welcome back to Cafe Games.</p>
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 text-xl border border-indigo-200/50 dark:border-indigo-800/50">
+            ☕
+          </div>
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-zinc-900 dark:text-zinc-50">Sign in</h1>
+            <p className="text-xs text-zinc-600 dark:text-zinc-400">تسجيل الدخول - ألعاب القهوة</p>
+          </div>
+        </div>
 
-        {oauthEnabled ? (
-          <>
-            <button
-              type="button"
-              onClick={onGoogleSignIn}
-              className="mt-6 w-full rounded-xl border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-950 px-4 py-2.5 text-sm font-semibold text-zinc-800 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition cursor-pointer"
-            >
-              Continue with Google
-            </button>
+        <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400">Welcome back to Cafe Games.</p>
 
-            <div className="my-5 flex items-center gap-3 text-xs text-zinc-400">
-              <span className="h-px flex-1 bg-zinc-200 dark:bg-zinc-800" />
-              or
-              <span className="h-px flex-1 bg-zinc-200 dark:bg-zinc-800" />
-            </div>
-          </>
-        ) : null}
-
-        <form onSubmit={onCredentialsSignIn} className="mt-5 space-y-4">
+        <form onSubmit={onCredentialsSignIn} className="mt-6 space-y-4">
           <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">
-            <span className="mb-1.5 block">Email</span>
+            <span className="mb-1.5 block">Phone Number / رقم الهاتف</span>
             <input
-              type="email"
-              name="email"
+              type="text"
+              name="phoneOrEmail"
               required
-              autoComplete="email"
-              className="w-full rounded-xl border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-950 px-3.5 py-2.5 text-sm text-zinc-900 dark:text-zinc-100 outline-none focus:border-indigo-500"
+              autoComplete="username"
+              placeholder="e.g. 01012345678 or +201..."
+              className="w-full rounded-xl border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-950 px-3.5 py-2.5 text-sm text-zinc-900 dark:text-zinc-100 outline-none focus:border-indigo-500 transition"
             />
           </label>
 
           <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">
             <div className="mb-1.5 flex items-center justify-between">
-              <span>Password</span>
+              <span>Password (كلمة المرور)</span>
               <Link
                 href="/forgot-password"
-                className="font-normal text-xs normal-case text-indigo-600 dark:text-indigo-400 hover:underline"
+                className="font-medium text-indigo-600 dark:text-indigo-400 hover:underline capitalize text-[11px]"
               >
                 Forgot password?
               </Link>
@@ -94,7 +79,7 @@ export default function LoginPage() {
               required
               minLength={8}
               autoComplete="current-password"
-              className="w-full rounded-xl border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-950 px-3.5 py-2.5 text-sm text-zinc-900 dark:text-zinc-100 outline-none focus:border-indigo-500"
+              className="w-full rounded-xl border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-950 px-3.5 py-2.5 text-sm text-zinc-900 dark:text-zinc-100 outline-none focus:border-indigo-500 transition"
             />
           </label>
 
@@ -116,7 +101,7 @@ export default function LoginPage() {
         <p className="mt-5 text-center text-xs text-zinc-600 dark:text-zinc-400">
           No account yet?{" "}
           <Link href="/signup" className="font-bold text-indigo-600 dark:text-indigo-400 underline">
-            Create one
+            Create one with WhatsApp
           </Link>
         </p>
       </div>
