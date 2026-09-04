@@ -70,10 +70,25 @@ export async function Navbar() {
           {session?.user ? (
             <div className="flex items-center gap-2 sm:gap-3">
               <Link
-                href="/dashboard"
-                className="hidden sm:inline-flex rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 px-3 py-1.5 text-xs font-semibold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition"
+                href="/profile"
+                className="flex items-center gap-2 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 px-2.5 py-1.5 text-xs font-semibold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition"
+                title="Edit Profile"
               >
-                {session.user.name || session.user.email?.split("@")[0] || "Profile"}
+                {session.user.image ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={session.user.image}
+                    alt={session.user.name || "Avatar"}
+                    className="h-5 w-5 rounded-full object-cover ring-1 ring-indigo-500/50"
+                  />
+                ) : (
+                  <span className="h-5 w-5 rounded-full bg-indigo-100 dark:bg-indigo-950 flex items-center justify-center text-[10px] text-indigo-700 dark:text-indigo-300 font-bold">
+                    {session.user.name ? session.user.name[0].toUpperCase() : "👤"}
+                  </span>
+                )}
+                <span className="hidden sm:inline">
+                  {session.user.name || session.user.email?.split("@")[0] || "Profile"}
+                </span>
               </Link>
               <SignOutButton className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-900 dark:bg-zinc-100 px-3 py-1.5 text-xs font-semibold text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-white transition" />
             </div>

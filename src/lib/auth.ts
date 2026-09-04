@@ -69,15 +69,27 @@ export const authOptions: NextAuthOptions = {
   },
   providers: typedProviders,
   callbacks: {
-    jwt: ({ token, user }) => {
+    jwt: async ({ token, user, trigger, session }) => {
       if (user?.id) {
         token.sub = user.id;
+        token.name = user.name;
+        token.picture = user.image;
+      }
+      if (trigger === "update" && session) {
+        if (session.name !== undefined) token.name = session.name;
+        if (session.image !== undefined) token.picture = session.image;
       }
       return token;
     },
     session: ({ session, token }) => {
       if (session.user && token.sub) {
         session.user.id = token.sub;
+        if (token.name !== undefined) {
+          session.user.name = token.name;
+        }
+        if (token.picture !== undefined) {
+          session.user.image = token.picture;
+        }
       }
       return session;
     },

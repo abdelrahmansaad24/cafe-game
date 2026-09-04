@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { hashPassword } from "@/lib/password";
 import { prisma } from "@/lib/prisma";
 import { signupSchema } from "@/lib/validation/auth";
+import { sendWelcomeEmail } from "@/lib/email";
 
 export async function POST(request: Request) {
   try {
@@ -43,6 +44,14 @@ export async function POST(request: Request) {
         passwordHash,
       },
       select: { id: true },
+    });
+
+    // Send welcome email via Mailtrap (non-blocking / resilient)
+    sendWelcomeEmail({
+      email: parsedPayload.data.email,
+      name: parsedPayload.data.name,
+    }).catch((emailErr) => {
+      console.error("Non-fatal: failed to send welcome email:", emailErr);
     });
 
     return NextResponse.json({ ok: true }, { status: 201 });

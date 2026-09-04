@@ -18,7 +18,15 @@ export default async function DashboardPage() {
             Welcome back, <span className="font-semibold text-zinc-900 dark:text-zinc-100">{session.user.name || session.user.email}</span>
           </p>
         </div>
-        <SignOutButton className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-900 dark:bg-zinc-100 px-4 py-2 text-xs font-bold text-white dark:text-zinc-900 hover:opacity-90 transition" />
+        <div className="flex items-center gap-2.5">
+          <Link
+            href="/profile"
+            className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 px-4 py-2 text-xs font-bold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition"
+          >
+            ⚙️ Edit Profile
+          </Link>
+          <SignOutButton className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-900 dark:bg-zinc-100 px-4 py-2 text-xs font-bold text-white dark:text-zinc-900 hover:opacity-90 transition" />
+        </div>
       </div>
 
       <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">

@@ -43,6 +43,10 @@ const envSchema = z.object({
   ENABLE_GOOGLE_OAUTH: booleanString.default(false),
   AUTH_GOOGLE_ID: z.string().min(1, "AUTH_GOOGLE_ID is required.").optional(),
   AUTH_GOOGLE_SECRET: z.string().min(1, "AUTH_GOOGLE_SECRET is required.").optional(),
+  MAILTRAP_TOKEN: z.string().optional(),
+  MAILTRAP_SENDER_EMAIL: z.string().email().default("hello@demomailtrap.co"),
+  MAILTRAP_SENDER_NAME: z.string().default("Cafe Games"),
+  APP_URL: z.string().url().default("http://localhost:3000"),
 });
 
 const parsedEnv = envSchema.parse({
@@ -62,6 +66,10 @@ const parsedEnv = envSchema.parse({
   ENABLE_GOOGLE_OAUTH: process.env.ENABLE_GOOGLE_OAUTH ?? "false",
   AUTH_GOOGLE_ID: process.env.AUTH_GOOGLE_ID,
   AUTH_GOOGLE_SECRET: process.env.AUTH_GOOGLE_SECRET,
+  MAILTRAP_TOKEN: process.env.MAILTRAP_TOKEN,
+  MAILTRAP_SENDER_EMAIL: process.env.MAILTRAP_SENDER_EMAIL ?? "hello@demomailtrap.co",
+  MAILTRAP_SENDER_NAME: process.env.MAILTRAP_SENDER_NAME ?? "Cafe Games",
+  APP_URL: process.env.APP_URL ?? process.env.NEXTAUTH_URL ?? "http://localhost:3000",
 });
 
 if (process.env.NODE_ENV === "production") {
