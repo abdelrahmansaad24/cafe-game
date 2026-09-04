@@ -6,7 +6,7 @@ type RouteContext = {
   params: Promise<{ roomCode: string }>;
 };
 
-export async function POST(_: Request, context: RouteContext) {
+export async function POST(request: Request, context: RouteContext) {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -17,11 +17,22 @@ export async function POST(_: Request, context: RouteContext) {
     return NextResponse.json({ error: "Invalid room code." }, { status: 400 });
   }
 
+  let password: string | undefined;
+  try {
+    const body = await request.json();
+    if (typeof body?.password === "string") {
+      password = body.password;
+    }
+  } catch {
+    // Body is optional
+  }
+
   try {
     const player = await joinBankRoom({
       roomCode,
       userId: session.user.id,
       displayName: session.user.name?.trim() || session.user.email || "Player",
+      password,
     });
 
     return NextResponse.json({ player });

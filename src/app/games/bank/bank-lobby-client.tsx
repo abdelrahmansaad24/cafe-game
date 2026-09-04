@@ -124,7 +124,9 @@ export default function BankLobbyClient() {
   const [creating, setCreating] = useState(false);
 
   const [joinCode, setJoinCode] = useState("");
+  const [joinPassword, setJoinPassword] = useState("");
   const [joining, setJoining] = useState(false);
+  const [joiningRoomCode, setJoiningRoomCode] = useState<string | null>(null);
 
   const links = useMemo(
     () => ({
@@ -189,6 +191,28 @@ export default function BankLobbyClient() {
     }
   };
 
+  const handleJoinPublicRoom = async (code: string) => {
+    setError(null);
+    setJoiningRoomCode(code);
+    try {
+      const response = await fetch(`/api/games/bank/rooms/${code}/join`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || (lang === "ar" ? "تعذر الانضمام للطاولة." : "Could not join table."));
+      }
+
+      router.push(`/games/bank/${code}?lang=${lang}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : (lang === "ar" ? "تعذر الانضمام للطاولة." : "Could not join table."));
+      setJoiningRoomCode(null);
+    }
+  };
+
   const handleJoinByCode = async (e: FormEvent) => {
     e.preventDefault();
     const code = joinCode.trim().toUpperCase();
@@ -203,16 +227,18 @@ export default function BankLobbyClient() {
     try {
       const response = await fetch(`/api/games/bank/rooms/${code}/join`, {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: joinPassword.trim() || undefined }),
       });
 
       const data = await response.json();
       if (!response.ok) {
-        throw new Error(data.error || "Could not join table.");
+        throw new Error(data.error || (lang === "ar" ? "تعذر الانضمام للطاولة." : "Could not join table."));
       }
 
       router.push(`/games/bank/${code}?lang=${lang}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Error joining table.");
+      setError(err instanceof Error ? err.message : (lang === "ar" ? "تعذر الانضمام للطاولة." : "Error joining table."));
       setJoining(false);
     }
   };
@@ -394,23 +420,32 @@ export default function BankLobbyClient() {
               <span>{t.joinByCode}</span>
             </h2>
 
-            <form onSubmit={handleJoinByCode} className="mt-4 flex gap-2">
+            <form onSubmit={handleJoinByCode} className="mt-4 space-y-2">
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  required
+                  maxLength={6}
+                  placeholder="ABC123"
+                  value={joinCode}
+                  onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+                  className="flex-1 font-mono tracking-widest text-center uppercase font-black rounded-xl border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-3.5 py-2.5 text-base text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                />
+                <button
+                  type="submit"
+                  disabled={joining}
+                  className="rounded-xl bg-zinc-900 dark:bg-zinc-100 px-5 py-2.5 text-xs font-bold text-white dark:text-zinc-900 hover:opacity-90 transition disabled:opacity-50 cursor-pointer"
+                >
+                  {joining ? "..." : t.join}
+                </button>
+              </div>
               <input
-                type="text"
-                required
-                maxLength={6}
-                placeholder="ABC123"
-                value={joinCode}
-                onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-                className="flex-1 font-mono tracking-widest text-center uppercase font-black rounded-xl border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-3.5 py-2.5 text-base text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                type="password"
+                placeholder={lang === "ar" ? "كلمة السر (إن وجدت)" : "Password (if private table)"}
+                value={joinPassword}
+                onChange={(e) => setJoinPassword(e.target.value)}
+                className="w-full rounded-xl border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-3.5 py-2 text-xs text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-amber-500"
               />
-              <button
-                type="submit"
-                disabled={joining}
-                className="rounded-xl bg-zinc-900 dark:bg-zinc-100 px-5 py-2.5 text-xs font-bold text-white dark:text-zinc-900 hover:opacity-90 transition disabled:opacity-50"
-              >
-                {joining ? "..." : t.join}
-              </button>
             </form>
           </div>
 
@@ -449,12 +484,14 @@ export default function BankLobbyClient() {
                       </div>
                     </div>
 
-                    <Link
-                      href={`/games/bank/${r.roomCode}?lang=${lang}`}
-                      className="rounded-xl bg-amber-600 px-3.5 py-1.5 text-xs font-bold text-white hover:bg-amber-500 transition shadow"
+                    <button
+                      type="button"
+                      disabled={joiningRoomCode === r.roomCode}
+                      onClick={() => handleJoinPublicRoom(r.roomCode)}
+                      className="rounded-xl bg-amber-600 px-3.5 py-1.5 text-xs font-bold text-white hover:bg-amber-500 transition shadow disabled:opacity-50 cursor-pointer"
                     >
-                      {t.openRoom} →
-                    </Link>
+                      {joiningRoomCode === r.roomCode ? "..." : `${t.openRoom} →`}
+                    </button>
                   </div>
                 ))}
               </div>

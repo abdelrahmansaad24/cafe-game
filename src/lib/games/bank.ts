@@ -5,8 +5,11 @@ import {
   BoardTile,
   COLOR_GROUP_DETAILS,
   ColorGroup,
+  GO_TO_JAIL_TILE_INDEX,
+  JAIL_TILE_INDEX,
   LUCK_CARDS,
   PropertiesStateMap,
+  START_TILE_INDEX,
 } from "./bank-types";
 
 export const BANK_ROOM_CODE_REGEX = /^[A-Z0-9]{6}$/;
@@ -139,11 +142,12 @@ export async function createBankRoom({
 }
 
 export async function listPublicBankRooms() {
-  // Prune abandoned rooms where all players have been inactive for > 45s
+  // Prune abandoned rooms older than 2 hours
   try {
-    const cutoff = new Date(Date.now() - 45000);
+    const cutoff = new Date(Date.now() - 2 * 60 * 60 * 1000);
     const staleRooms = await prisma.bankRoom.findMany({
       where: {
+        createdAt: { lt: cutoff },
         players: {
           none: {
             lastActiveAt: { gte: cutoff },
@@ -205,8 +209,8 @@ export async function getBankRoomState(roomCode: string, currentUserId?: string)
       .catch(() => undefined);
   }
 
-  // Check if ALL players have closed their tabs / left (no active polls for > 35s)
-  const ACTIVE_TIMEOUT_MS = 35000;
+  // Check if room has been abandoned for more than 2 hours
+  const ACTIVE_TIMEOUT_MS = 2 * 60 * 60 * 1000;
   const anyActivePlayer = room.players.some((p) => {
     // Current poller is active right now
     if (selfPlayer && p.id === selfPlayer.id) return true;
@@ -288,10 +292,12 @@ export async function joinBankRoom({
   roomCode,
   userId,
   displayName,
+  password,
 }: {
   roomCode: string;
   userId: string;
   displayName: string;
+  password?: string;
 }) {
   const room = await prisma.bankRoom.findUnique({
     where: { roomCode: roomCode.toUpperCase().trim() },
@@ -304,6 +310,12 @@ export async function joinBankRoom({
 
   const existing = room.players.find((p) => p.userId === userId);
   if (existing) return existing;
+
+  if (room.visibility === "PRIVATE" && room.passwordHash) {
+    if (!password || password.trim() !== room.passwordHash.trim()) {
+      throw new Error("Incorrect room password.");
+    }
+  }
 
   const seatIndex = room.players.length;
   const avatar = AVATARS[seatIndex % AVATARS.length];
@@ -400,7 +412,8 @@ export async function startBankGame({
   if (!room || room.status !== "WAITING") {
     throw new Error("Match cannot be started.");
   }
-  if (room.createdById !== hostUserId) {
+  const hostPlayer = room.players.find((p) => p.userId === hostUserId);
+  if (!hostPlayer?.isHost && room.createdById !== hostUserId) {
     throw new Error("Only the host can start the match.");
   }
   if (room.players.length < 2) {
@@ -490,7 +503,7 @@ export async function rollDiceBankAction({
   if (player.inJail) {
     if (isDoubles) {
       // Escaped with doubles!
-      const newPos = (player.position + totalRoll) % 40;
+      const newPos = (player.position + totalRoll) % BANK_TILES.length;
       await prisma.$transaction(async (tx) => {
         await tx.bankRoomPlayer.update({
           where: { id: player.id },
@@ -525,7 +538,7 @@ export async function rollDiceBankAction({
         // Must pay 50 and exit
         const fine = 50;
         const newMoney = Math.max(0, player.money - fine);
-        const newPos = (player.position + totalRoll) % 40;
+        const newPos = (player.position + totalRoll) % BANK_TILES.length;
 
         await prisma.$transaction(async (tx) => {
           await tx.bankRoomPlayer.update({
@@ -599,7 +612,7 @@ export async function rollDiceBankAction({
     await prisma.$transaction(async (tx) => {
       await tx.bankRoomPlayer.update({
         where: { id: player.id },
-        data: { position: 10, inJail: true, jailTurns: 0 },
+        data: { position: JAIL_TILE_INDEX, inJail: true, jailTurns: 0 },
       });
 
       await tx.bankRoom.update({
@@ -627,26 +640,26 @@ export async function rollDiceBankAction({
 
   // Calculate new tile position
   const currentPos = player.position;
-  const newPos = (currentPos + totalRoll) % 40;
+  let newPos = (currentPos + totalRoll) % BANK_TILES.length;
   const passedGo = newPos < currentPos || newPos === 0;
   const salaryMoney = passedGo ? 200 : 0;
   let updatedMoney = player.money + salaryMoney;
 
-  const targetTile = BANK_TILES[newPos];
+  let targetTile = BANK_TILES[newPos];
   let nextPhase: "TILE_ACTION" | "TURN_END" = "TURN_END";
   let actionDetails = `🎲 ${player.displayName} rolled [${d1}, ${d2}] (Total ${totalRoll}) and landed on [${targetTile.nameAr}]${targetTile.countryFlag}.`;
   if (passedGo) {
-    actionDetails += ` 🟢 Passed GO (+200 EGP)!`;
+    actionDetails += ` 🟢 Passed START (+200 EGP)!`;
   }
 
   // 3. LANDING TILE LOGIC
-  if (newPos === 30) {
-    // Tile 30: Go to Jail!
+  if (newPos === GO_TO_JAIL_TILE_INDEX) {
+    // Tile 30: Court -> Go directly to Citadel Prison!
     await prisma.$transaction(async (tx) => {
       await tx.bankRoomPlayer.update({
         where: { id: player.id },
         data: {
-          position: 10,
+          position: JAIL_TILE_INDEX,
           inJail: true,
           jailTurns: 0,
           money: updatedMoney,
@@ -669,7 +682,7 @@ export async function rollDiceBankAction({
           roomId: room.id,
           actorId: player.id,
           type: "ROLL_DICE",
-          details: `${actionDetails} 🚨 Landed on [اذهب إلى السجن], sent directly to Jail!`,
+          details: `${actionDetails} 🚨 Landed on [${targetTile.nameAr}], sent directly to Citadel Prison!`,
         },
       });
     });
@@ -677,7 +690,7 @@ export async function rollDiceBankAction({
   }
 
   if (targetTile.type === "TAX") {
-    // Pay Income Tax or Luxury Tax
+    // Pay Court Fine or Tax
     const taxAmount = targetTile.price;
     updatedMoney = Math.max(0, updatedMoney - taxAmount);
     actionDetails += ` 💸 Paid ${taxAmount} EGP ${targetTile.nameAr}.`;
@@ -699,7 +712,7 @@ export async function rollDiceBankAction({
       await prisma.$transaction(async (tx) => {
         await tx.bankRoomPlayer.update({
           where: { id: player.id },
-          data: { position: 10, inJail: true, jailTurns: 0, money: updatedMoney },
+          data: { position: JAIL_TILE_INDEX, inJail: true, jailTurns: 0, money: updatedMoney },
         });
         await tx.bankRoom.update({
           where: { id: room.id },
@@ -721,6 +734,17 @@ export async function rollDiceBankAction({
         });
       });
       return;
+    } else if (randomCard.action === "MOVE_TO" && typeof randomCard.targetIndex === "number") {
+      const prevPos = newPos;
+      newPos = randomCard.targetIndex;
+      if (newPos < prevPos) {
+        updatedMoney += 200; // Passed start
+        actionDetails += ` 🟢 Passed START (+200 EGP)!`;
+      }
+      targetTile = BANK_TILES[newPos];
+    } else if (randomCard.action === "MOVE_STEPS" && typeof randomCard.steps === "number") {
+      newPos = (newPos + randomCard.steps + BANK_TILES.length) % BANK_TILES.length;
+      targetTile = BANK_TILES[newPos];
     }
   } else if (
     targetTile.type === "PROPERTY" ||

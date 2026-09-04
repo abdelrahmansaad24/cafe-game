@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState, useCallback, ReactNode } from "react";
 
-type GameTheme = "domino" | "screw" | "uno";
+type GameTheme = "domino" | "screw" | "uno" | "bank";
 
 interface GameTableShellProps {
   children: ReactNode;
@@ -74,6 +74,15 @@ const THEME_STYLES: Record<GameTheme, {
     accent: "bg-red-500",
     accentText: "text-red-300",
     icon: "🎴",
+  },
+  bank: {
+    bg: "bg-gradient-to-br from-[#0c2a1c] via-[#091f15] to-[#040e09]",
+    border: "border-amber-500/50",
+    topBarBg: "bg-[#06180f]/90",
+    dockBg: "bg-[#04110b]/90",
+    accent: "bg-amber-500",
+    accentText: "text-amber-300",
+    icon: "🎩",
   },
 };
 
