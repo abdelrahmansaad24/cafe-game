@@ -1119,8 +1119,17 @@ export async function nextRoundSabahoAction({
   }
 
   const nextRoundNum = room.roundNumber + 1;
+  // Remember answers already used in this match so they do not repeat
+  let usedPasswords: string[] = [];
+  try {
+    const prev: ActiveSabahoQuestion | null = JSON.parse(room.activeQuestionJson || "null");
+    usedPasswords = [...(prev?.usedPasswords ?? []), ...(prev?.password ? [prev.password.wordEn] : [])];
+  } catch {
+    usedPasswords = [];
+  }
+
   const nextQuestion = initPasswordRound(
-    await generateSabahoChallenge(room.gameMode, nextRoundNum),
+    await generateSabahoChallenge(room.gameMode, nextRoundNum, usedPasswords),
     room.players,
     // The team that did not win the last round starts the next one
     (() => {
@@ -1128,6 +1137,7 @@ export async function nextRoundSabahoAction({
       return winnerTeam === 1 ? 2 : winnerTeam === 2 ? 1 : undefined;
     })(),
   );
+  nextQuestion.usedPasswords = usedPasswords;
 
   let initialPhase: "AUCTION_BIDDING" | "CAREER_REVEAL" | "SPEED_CHALLENGE" | "PASSWORD_ROUND" = "AUCTION_BIDDING";
   let timerSeconds = 30;

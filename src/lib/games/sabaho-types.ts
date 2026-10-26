@@ -26,6 +26,7 @@ export type ActiveSabahoQuestion = {
   career?: CareerPathItem;
   speed?: SpeedPromptItem;
   password?: PasswordItem;
+  usedPasswords?: string[];
   passwordRound?: PasswordRoundState;
 };
 
@@ -67,7 +68,8 @@ export function pickChallengeForRound(
     return { type: "SPEED", roundNumber, speed: item };
   } else {
     // Password round: one secret football player
-    const pool = PASSWORD_WORDS.filter((w) => w.category === "لاعب");
+    const pool = PASSWORD_WORDS.filter((w) => w.category === "لاعب" && !usedIds.includes(w.id) && !usedIds.includes(w.wordEn));
+    if (pool.length === 0) pool.push(...PASSWORD_WORDS.filter((w) => w.category === "لاعب"));
     const item = pool[Math.floor(Math.random() * pool.length)];
     return { type: "PASSWORD", roundNumber, password: item };
   }

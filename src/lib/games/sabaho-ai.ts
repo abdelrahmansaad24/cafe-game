@@ -22,7 +22,11 @@ function hasConfiguredGeminiKey(): boolean {
   return key.length > 0 && !key.startsWith("replace-");
 }
 
-async function callGeminiJson<T>(prompt: string, timeoutMs = 4500): Promise<T | null> {
+async function callGeminiJson<T>(
+  prompt: string,
+  timeoutMs = 4500,
+  temperature = 0.7,
+): Promise<T | null> {
   if (!hasConfiguredGeminiKey()) return null;
 
   const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${env.GEMINI_MODEL}:generateContent`;
@@ -41,7 +45,7 @@ async function callGeminiJson<T>(prompt: string, timeoutMs = 4500): Promise<T | 
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: {
-          temperature: 0.7,
+          temperature,
           maxOutputTokens: 1200,
         },
       }),
@@ -132,6 +136,22 @@ export async function validatePlayerGuessWithGemini({
   }
 
   return { valid: false, explanation: "إجابة غير متطابقة مع اللاعب المطلوب." };
+}
+
+function pickRandom<T>(items: T[]): T {
+  return items[Math.floor(Math.random() * items.length)];
+}
+
+// Random constraint so Gemini does not keep returning the same famous names
+function pickPasswordConstraint(): string {
+  const countries = [
+    "Egypt", "Morocco", "Algeria", "Tunisia", "Saudi Arabia", "Senegal", "Nigeria", "Ghana", "Ivory Coast",
+    "Brazil", "Argentina", "Uruguay", "Colombia", "Spain", "Italy", "Germany", "France", "England",
+    "Netherlands", "Portugal", "Belgium", "Croatia", "Japan", "South Korea", "Turkey", "Sweden",
+  ];
+  const decades = ["1980s", "1990s", "2000s", "2010s", "2020s"];
+  const positions = ["goalkeeper", "defender", "midfielder", "winger", "striker"];
+  return `a ${pickRandom(positions)} from ${pickRandom(countries)} who was active in the ${pickRandom(decades)} make it random as much as possible `;
 }
 
 /**
@@ -234,15 +254,18 @@ export async function generateSabahoChallenge(
           "Pick ONE secret answer for the football 'Password' game (كلمة السر) of Sabaho Tahadi.",
           "It must be a famous football PLAYER only (not a coach, club, stadium or term). Mix Egyptian, Arab and world football.",
           "Pick something different each time; do not always choose the most obvious one.",
+          "AVOID the all-time superstars (Messi, Ronaldo, Salah, Neymar, Mbappe, Haaland, Zidane, Maradona, Pele) unless the constraint below requires it.",
+          `Constraint for this pick: ${pickPasswordConstraint()}.`,
+          usedIds.length > 0 ? `Do NOT pick any of these already used: ${usedIds.join(", ")}.` : "",
           'Return ONLY a JSON object with this exact shape:',
           '{"wordAr": string, "wordEn": string, "category": "لاعب"}',
-        ].join("\n");
+        ].filter(Boolean).join("\n");
 
         const res = await callGeminiJson<{
           wordAr: string;
           wordEn: string;
           category: "لاعب";
-        }>(prompt, 4000);
+        }>(prompt, 4000, 1.2);
 
         if (res?.wordAr?.trim()) {
           return {
