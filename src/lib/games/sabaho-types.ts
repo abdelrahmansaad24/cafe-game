@@ -12,16 +12,12 @@ import {
 export type SabahoChallengeType = "AUCTION" | "CAREER_PATH" | "SPEED" | "PASSWORD";
 
 export type PasswordRoundState = {
-  giverId: string;
-  turnPlayerId: string;
+  turnTeam: 1 | 2;
   attemptPoints: number;
+  giverIds: Record<string, string>;
+  guesserIds: Record<string, string>;
   hint: string | null;
-  wrongGuesserIds: string[];
-  history: Array<{
-    hint: string;
-    points: number;
-    guesses: Array<{ playerId: string; name: string; guess: string }>;
-  }>;
+  history: Array<{ team: 1 | 2; hint: string; guess?: string; points: number }>;
 };
 export type ActiveSabahoQuestion = {
   type: SabahoChallengeType;
@@ -70,8 +66,8 @@ export function pickChallengeForRound(
     const item = pool[Math.floor(Math.random() * pool.length)];
     return { type: "SPEED", roundNumber, speed: item };
   } else {
-    // Password round: one secret player/coach/club/stadium
-    const pool = PASSWORD_WORDS.filter((w) => ["لاعب", "مدرب", "نادي", "ملعب"].includes(w.category));
+    // Password round: one secret football player
+    const pool = PASSWORD_WORDS.filter((w) => w.category === "لاعب");
     const item = pool[Math.floor(Math.random() * pool.length)];
     return { type: "PASSWORD", roundNumber, password: item };
   }

@@ -575,14 +575,12 @@ export default function SabahoRoomClient({ roomCode }: { roomCode: string }) {
   const speed = question?.speed;
   const passwordCard = question?.password ?? null;
   const pwdRound = question?.passwordRound ?? null;
-  const isPwdMode = room.gameMode === "PASSWORD";
+  const pwdTurnTeamName = pwdRound ? (pwdRound.turnTeam === 1 ? room.team1Name : room.team2Name) : "";
   const isPwdGiver = selfPlayer.isPasswordClueGiver;
-  const pwdGiverName = pwdRound ? room.players.find((p) => p.id === pwdRound.giverId)?.displayName ?? "" : "";
-  const isMyHintTurn = !!pwdRound && !pwdRound.hint && isPwdGiver;
-  const isMyGuessTurn = !!pwdRound && !!pwdRound.hint && pwdRound.turnPlayerId === selfPlayer.id;
-  const pwdTurnName = pwdRound ? room.players.find((p) => p.id === pwdRound.turnPlayerId)?.displayName ?? "" : "";
-  const rankedPlayers = [...room.players].sort((a, b) => b.score - a.score);
-
+  const isMyHintTurn =
+    !!pwdRound && !pwdRound.hint && pwdRound.giverIds[pwdRound.turnTeam] === selfPlayer.id;
+  const isMyGuessTurn =
+    !!pwdRound && !!pwdRound.hint && pwdRound.guesserIds[pwdRound.turnTeam] === selfPlayer.id;
   const team1Players = room.players.filter((p) => p.team === 1);
   const team2Players = room.players.filter((p) => p.team === 2);
 
@@ -639,28 +637,6 @@ export default function SabahoRoomClient({ roomCode }: { roomCode: string }) {
       </div>
 
       {/* MATCH SCOREBOARD BANNER (TEAM 1 VS TEAM 2) */}
-      {isPwdMode ? (
-        <section className="rounded-3xl border-2 border-emerald-500/30 bg-gradient-to-r from-emerald-700 via-zinc-900 to-teal-700 p-5 text-white shadow-xl space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-zinc-300">
-              {t.round} {room.roundNumber}/{room.roundsTotal}
-            </span>
-            {timerRemaining !== null && (
-              <span className="rounded-full bg-amber-400 text-zinc-950 px-3 py-1 text-xs font-black font-mono">
-                ⏱️ {timerRemaining}s
-              </span>
-            )}
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {rankedPlayers.map((p) => (
-              <div key={p.id} className="rounded-xl bg-white/10 px-3 py-1.5 text-sm font-bold">
-                {p.displayName}{" "}
-                <span className="font-mono text-emerald-300">{p.score}</span>
-              </div>
-            ))}
-          </div>
-        </section>
-      ) : (
       <section className="relative rounded-3xl border-2 border-emerald-500/30 bg-gradient-to-r from-red-600 via-zinc-900 to-sky-600 p-5 text-white shadow-xl">
         <div className="flex flex-wrap items-center justify-between gap-4">
           {/* Team 1 Banner */}
@@ -700,7 +676,6 @@ export default function SabahoRoomClient({ roomCode }: { roomCode: string }) {
           </div>
         </div>
       </section>
-      )}
 
       {/* LOBBY / PRE-GAME WAITING & TEAM SWITCHING */}
       {room.status === "WAITING" && (
@@ -713,7 +688,7 @@ export default function SabahoRoomClient({ roomCode }: { roomCode: string }) {
           </div>
 
           {/* Admin Team Names Customization (Choose in Start) */}
-          {selfPlayer.isHost && !isPwdMode && (
+          {selfPlayer.isHost && (
             <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4 space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-black text-amber-600 dark:text-amber-400">
@@ -790,18 +765,6 @@ export default function SabahoRoomClient({ roomCode }: { roomCode: string }) {
           )}
 
           {/* 2 Team Selection Columns */}
-          {isPwdMode ? (
-            <div className="rounded-2xl border-2 border-emerald-500/40 bg-emerald-500/5 p-4 space-y-2">
-              <span className="text-sm font-black text-emerald-600 dark:text-emerald-400">
-                {lang === "ar" ? "اللاعبون" : "Players"} ({playerCount})
-              </span>
-              {room.players.map((p) => (
-                <div key={p.id} className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
-                  • {p.displayName} {p.id === selfPlayer.id && (lang === "ar" ? "(أنت)" : "(you)")}
-                </div>
-              ))}
-            </div>
-          ) : (
           <div className="grid gap-4 sm:grid-cols-2">
             {/* Team 1 Box */}
             <div className="rounded-2xl border-2 border-red-500/40 bg-red-500/5 p-4 space-y-3">
@@ -855,7 +818,6 @@ export default function SabahoRoomClient({ roomCode }: { roomCode: string }) {
               </div>
             </div>
           </div>
-          )}
 
           {selfPlayer.isHost && (
             <div className="pt-2 max-w-sm mx-auto">
@@ -1123,14 +1085,9 @@ export default function SabahoRoomClient({ roomCode }: { roomCode: string }) {
 
               <div className="max-w-md mx-auto rounded-3xl border-2 border-emerald-500/40 bg-gradient-to-br from-emerald-500/10 via-zinc-900/40 to-teal-500/10 p-6 shadow-xl space-y-3">
                 <p className="text-sm font-black text-zinc-800 dark:text-zinc-100">
-                  {lang === "ar" ? "مُعطي التلميح:" : "Clue giver:"} {pwdGiverName} —{" "}
+                  {lang === "ar" ? "الدور على:" : "Turn:"} {pwdTurnTeamName} —{" "}
                   <span className="font-mono text-emerald-500">{pwdRound.attemptPoints}</span>{" "}
                   {lang === "ar" ? "نقاط" : "pts"}
-                  {pwdRound.hint && (
-                    <span className="block text-xs font-bold text-indigo-400 mt-1">
-                      {lang === "ar" ? "دور التخمين:" : "Guessing turn:"} {pwdTurnName}
-                    </span>
-                  )}
                 </p>
 
                 {passwordCard ? (
@@ -1151,11 +1108,11 @@ export default function SabahoRoomClient({ roomCode }: { roomCode: string }) {
                   <p className="text-sm font-bold text-zinc-600 dark:text-zinc-300">
                     {isPwdGiver
                       ? lang === "ar"
-                        ? "اكتب تلميحاً جديداً بعد أن يخطئ الجميع."
-                        : "Waiting for the guessers…"
+                        ? "انتظر دور فريقك لإعطاء التلميح."
+                        : "Wait for your team's turn to give a hint."
                       : lang === "ar"
-                        ? "الكلمة سرية. انتظر التلميح ثم خمّن!"
-                        : "The answer is secret. Wait for the hint, then guess!"}
+                        ? "الكلمة سرية. انتظر تلميح زميلك ثم خمّن!"
+                        : "The answer is secret. Wait for your teammate's hint, then guess!"}
                   </p>
                 )}
 
@@ -1207,10 +1164,8 @@ export default function SabahoRoomClient({ roomCode }: { roomCode: string }) {
                 <div className="max-w-md mx-auto space-y-1 text-xs text-zinc-600 dark:text-zinc-300">
                   {pwdRound.history.map((h, i) => (
                     <div key={i} className="rounded-lg bg-zinc-50 dark:bg-zinc-950/40 border border-zinc-200 dark:border-zinc-800 px-3 py-1.5">
-                      {h.points} pts — 💡 {h.hint}
-                      {h.guesses.map((g, gi) => (
-                        <span key={gi}> · {g.name}: ❌ {g.guess}</span>
-                      ))}
+                      {h.team === 1 ? room.team1Name : room.team2Name} ({h.points}): 💡 {h.hint}
+                      {h.guess ? ` → ❌ ${h.guess}` : ""}
                     </div>
                   ))}
                 </div>

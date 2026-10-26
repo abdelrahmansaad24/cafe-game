@@ -232,16 +232,16 @@ export async function generateSabahoChallenge(
       } else if (targetType === "PASSWORD") {
         const prompt = [
           "Pick ONE secret answer for the football 'Password' game (كلمة السر) of Sabaho Tahadi.",
-          "It must be a famous football player, coach, club or stadium (mix Egyptian, Arab and world football).",
+          "It must be a famous football PLAYER only (not a coach, club, stadium or term). Mix Egyptian, Arab and world football.",
           "Pick something different each time; do not always choose the most obvious one.",
           'Return ONLY a JSON object with this exact shape:',
-          '{"wordAr": string, "wordEn": string, "category": "لاعب" | "مدرب" | "نادي" | "ملعب"}',
+          '{"wordAr": string, "wordEn": string, "category": "لاعب"}',
         ].join("\n");
 
         const res = await callGeminiJson<{
           wordAr: string;
           wordEn: string;
-          category: "لاعب" | "مدرب" | "نادي" | "ملعب";
+          category: "لاعب";
         }>(prompt, 4000);
 
         if (res?.wordAr?.trim()) {
@@ -252,7 +252,7 @@ export async function generateSabahoChallenge(
               id: `gemini-pwd-${Date.now()}`,
               wordAr: res.wordAr.trim(),
               wordEn: res.wordEn?.trim() || res.wordAr.trim(),
-              category: res.category || "لاعب",
+              category: "لاعب",
             },
           };
         }
