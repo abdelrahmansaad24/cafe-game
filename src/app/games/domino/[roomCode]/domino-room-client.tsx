@@ -884,10 +884,16 @@ export default function DominoRoomClient({ roomCode }: { roomCode: string }) {
             <div className="rounded-lg border border-indigo-500/30 bg-indigo-500/10 p-2 text-center">
               <p className="text-[10px] font-bold text-indigo-300">{t.teamA}</p>
               <p className="text-lg font-black text-white font-mono">{room.teamAScore}</p>
+              <p className="text-[10px] text-zinc-300 mt-1">
+                {room.players.filter((p) => p.team === "TEAM_A").map((p) => p.displayName).join(" • ") || "—"}
+              </p>
             </div>
             <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-2 text-center">
               <p className="text-[10px] font-bold text-amber-300">{t.teamB}</p>
               <p className="text-lg font-black text-white font-mono">{room.teamBScore}</p>
+              <p className="text-[10px] text-zinc-300 mt-1">
+                {room.players.filter((p) => p.team === "TEAM_B").map((p) => p.displayName).join(" • ") || "—"}
+              </p>
             </div>
           </div>
         </div>
