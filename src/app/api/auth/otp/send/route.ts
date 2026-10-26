@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { prisma } from "@/lib/prisma";
-import { formatE164Phone, normalizePhoneNumber, sendSmsVerifyCode } from "@/lib/sms";
+import { normalizePhoneNumber, sendSmsVerifyCode } from "@/lib/sms";
 
 const sendOtpSchema = z.object({
   phone: z.string().trim().min(8, "Phone number is too short."),
@@ -91,15 +91,13 @@ export async function POST(request: Request) {
       purpose,
     });
 
-    const isDev = process.env.NODE_ENV !== "production";
-
+    // TEMPORARY: the code is returned to the frontend until a real SMS provider
+    // that delivers our own generated code is configured.
     return NextResponse.json({
       ok: true,
-      message: isDev
-        ? `Verification code generated for ${formatE164Phone(phone)}. (Code: ${otpCode} - check terminal/SMS)`
-        : `Verification code sent via SMS to ${formatE164Phone(phone)}.`,
+      message: `Your verification code is ${otpCode}`,
       phone,
-      ...(isDev ? { devOtpCode: otpCode } : {}),
+      devOtpCode: otpCode,
     });
   } catch (error) {
     console.error("[OTP Send Error]:", error);
