@@ -4,6 +4,26 @@ import { prisma } from "@/lib/prisma";
 import { ActiveSabahoQuestion, pickChallengeForRound } from "./sabaho-types";
 import { generateSabahoChallenge, validatePlayerGuessWithGemini } from "./sabaho-ai";
 
+// Picks one random clue giver per team; only they get to see the password word.
+function assignPasswordClueGivers(
+  question: ActiveSabahoQuestion,
+  players: Array<{ id: string; team: number | null }>,
+) {
+  if (question.type !== "PASSWORD") return question;
+  const ids: string[] = [];
+  for (const team of [1, 2]) {
+    const members = players.filter((p) => p.team === team);
+    if (members.length > 0) {
+      ids.push(members[Math.floor(Math.random() * members.length)].id);
+    }
+  }
+  if (ids.length === 0 && players.length > 0) {
+    ids.push(players[Math.floor(Math.random() * players.length)].id);
+  }
+  question.clueGiverIds = ids;
+  return question;
+}
+
 export const SABAHO_ROOM_CODE_REGEX = /^[A-Z0-9]{6}$/;
 
 function generateRoomCode(): string {
@@ -198,6 +218,14 @@ export async function getSabahoRoomState({
 
   const isBuzzerPlayer = room.activeBuzzerPlayerId === selfPlayer.id;
 
+  const isPasswordClueGiver =
+    activeQuestion?.type === "PASSWORD" &&
+    (activeQuestion.clueGiverIds ?? []).includes(selfPlayer.id);
+  if (activeQuestion?.type === "PASSWORD" && !isPasswordClueGiver && room.currentPhase === "PASSWORD_ROUND") {
+    // Hide the secret words from everyone except their team's clue giver
+    activeQuestion = { ...activeQuestion, passwordList: undefined };
+  }
+
   const buzzerPlayer = room.players.find((p) => p.id === room.activeBuzzerPlayerId);
   const highBidder = room.players.find((p) => p.id === room.auctionHighBidderId);
 
@@ -261,6 +289,7 @@ export async function getSabahoRoomState({
       isMyTurn: room.currentTurnPlayerId === selfPlayer.id,
       isBuzzerPlayer,
       isClueGiver: room.clueGiverPlayerId === selfPlayer.id,
+      isPasswordClueGiver,
     },
   };
 }
@@ -366,7 +395,10 @@ export async function startSabahoGame({
     throw new Error("At least 2 players are required to start.");
   }
 
-  const firstQuestion = await generateSabahoChallenge(room.gameMode, 1);
+  const firstQuestion = assignPasswordClueGivers(
+    await generateSabahoChallenge(room.gameMode, 1),
+    room.players,
+  );
   let initialPhase: "AUCTION_BIDDING" | "CAREER_REVEAL" | "SPEED_CHALLENGE" | "PASSWORD_ROUND" = "AUCTION_BIDDING";
   let timerSeconds = 30;
   let timerEndsAt: Date | null = null;
@@ -795,6 +827,10 @@ export async function passwordCorrectSabahoAction({
     q = null;
   }
 
+  if (!q?.clueGiverIds?.includes(player.id)) {
+    throw new Error("Only the clue givers can confirm answers.");
+  }
+
   const list = q?.passwordList || [];
   const curIdx = q?.currentPasswordIndex || 0;
   const nextIdx = curIdx + 1;
@@ -892,6 +928,10 @@ export async function passwordPassSabahoAction({
     q = JSON.parse(room.activeQuestionJson || "null");
   } catch {
     q = null;
+  }
+
+  if (!q?.clueGiverIds?.includes(player.id)) {
+    throw new Error("Only the clue givers can skip words.");
   }
 
   const list = q?.passwordList || [];
@@ -1009,7 +1049,10 @@ export async function nextRoundSabahoAction({
   }
 
   const nextRoundNum = room.roundNumber + 1;
-  const nextQuestion = await generateSabahoChallenge(room.gameMode, nextRoundNum);
+  const nextQuestion = assignPasswordClueGivers(
+    await generateSabahoChallenge(room.gameMode, nextRoundNum),
+    room.players,
+  );
 
   let initialPhase: "AUCTION_BIDDING" | "CAREER_REVEAL" | "SPEED_CHALLENGE" | "PASSWORD_ROUND" = "AUCTION_BIDDING";
   let timerSeconds = 30;
@@ -1084,7 +1127,10 @@ export async function replaySabahoGameAction({
     throw new Error("Only the host can restart match.");
   }
 
-  const firstQuestion = await generateSabahoChallenge(room.gameMode, 1);
+  const firstQuestion = assignPasswordClueGivers(
+    await generateSabahoChallenge(room.gameMode, 1),
+    room.players,
+  );
   let initialPhase: "AUCTION_BIDDING" | "CAREER_REVEAL" | "SPEED_CHALLENGE" | "PASSWORD_ROUND" = "AUCTION_BIDDING";
   let timerSeconds = 30;
   let timerEndsAt: Date | null = null;

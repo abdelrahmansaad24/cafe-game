@@ -19,6 +19,7 @@ export type ActiveSabahoQuestion = {
   speed?: SpeedPromptItem;
   passwordList?: PasswordItem[];
   currentPasswordIndex?: number;
+  clueGiverIds?: string[];
 };
 
 export function pickChallengeForRound(

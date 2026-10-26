@@ -74,6 +74,7 @@ type RoomPayload = {
     isMyTurn: boolean;
     isBuzzerPlayer: boolean;
     isClueGiver: boolean;
+    isPasswordClueGiver: boolean;
   };
 };
 
@@ -1064,6 +1065,23 @@ export default function SabahoRoomClient({ roomCode }: { roomCode: string }) {
           )}
 
           {/* CHALLENGE TYPE 4: PASSWORD GAME (كلمة السر) */}
+          {isPasswordRound && !passwordCard && (
+            <div className="space-y-3 text-center">
+              <div className="inline-flex items-center gap-2 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-3.5 py-1 text-xs font-black">
+                <span>🔐</span>
+                <span>{t.passwordTitle}</span>
+              </div>
+              <p className="text-sm font-bold text-zinc-700 dark:text-zinc-300">
+                {lang === "ar"
+                  ? "اللاعب الوحيد في كل فريق الذي يعرف الكلمة سيعطيكم تلميحات — خمّنوا الكلمة!"
+                  : "Only one player in each team knows the word. Listen to their clues and guess!"}
+              </p>
+              <p className="text-xs text-zinc-500">
+                {lang === "ar" ? "الكلمات الصحيحة:" : "Correct words:"} {room.passwordScore}
+              </p>
+            </div>
+          )}
+
           {isPasswordRound && passwordCard && (
             <div className="space-y-6 text-center">
               <div className="inline-flex items-center gap-2 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-3.5 py-1 text-xs font-black">
