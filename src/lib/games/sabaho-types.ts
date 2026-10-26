@@ -12,14 +12,17 @@ import {
 export type SabahoChallengeType = "AUCTION" | "CAREER_PATH" | "SPEED" | "PASSWORD";
 
 export type PasswordRoundState = {
-  turnTeam: 1 | 2;
+  giverId: string;
+  turnPlayerId: string;
   attemptPoints: number;
-  giverIds: Record<string, string>;
-  guesserIds: Record<string, string>;
   hint: string | null;
-  history: Array<{ team: 1 | 2; hint: string; guess?: string; points: number }>;
+  wrongGuesserIds: string[];
+  history: Array<{
+    hint: string;
+    points: number;
+    guesses: Array<{ playerId: string; name: string; guess: string }>;
+  }>;
 };
-
 export type ActiveSabahoQuestion = {
   type: SabahoChallengeType;
   roundNumber: number;

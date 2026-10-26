@@ -4,37 +4,35 @@ import { prisma } from "@/lib/prisma";
 import { ActiveSabahoQuestion, pickChallengeForRound } from "./sabaho-types";
 import { generateSabahoChallenge, normalizeArabic, validatePlayerGuessWithGemini } from "./sabaho-ai";
 
-// Randomly assigns, per team, one clue giver (knows the secret) and one guesser.
+// Seat order is the turn order: the clue giver rotates each round and
+// guessers take turns starting from the seat after the giver.
+function nextPlayerAfter(players: Array<{ id: string }>, fromId: string, skipId: string) {
+  const start = players.findIndex((p) => p.id === fromId);
+  for (let i = 1; i <= players.length; i++) {
+    const candidate = players[(start + i) % players.length];
+    if (candidate.id !== skipId) return candidate;
+  }
+  return players[0];
+}
+
 function initPasswordRound(
   question: ActiveSabahoQuestion,
-  players: Array<{ id: string; team: number | null }>,
+  players: Array<{ id: string }>,
+  roundNumber: number,
 ) {
   if (question.type !== "PASSWORD") return question;
-  const giverIds: Record<string, string> = {};
-  const guesserIds: Record<string, string> = {};
-  const activeTeams: Array<1 | 2> = [];
-
-  for (const team of [1, 2] as const) {
-    const members = players.filter((p) => p.team === team);
-    if (members.length === 0) continue;
-    const shuffled = [...members].sort(() => Math.random() - 0.5);
-    giverIds[team] = shuffled[0].id;
-    guesserIds[team] = (shuffled[1] ?? shuffled[0]).id;
-    activeTeams.push(team);
-  }
-
+  const giver = players[(roundNumber - 1) % players.length];
   question.passwordRound = {
-    turnTeam: activeTeams[Math.floor(Math.random() * activeTeams.length)] ?? 1,
+    giverId: giver.id,
+    turnPlayerId: nextPlayerAfter(players, giver.id, giver.id).id,
     attemptPoints: 10,
-    giverIds,
-    guesserIds,
     hint: null,
+    wrongGuesserIds: [],
     history: [],
   };
   return question;
 }
 
-const assignPasswordClueGivers = initPasswordRound;
 
 // In the password game there is no moderator: any player in the room can advance.
 function canControlRound(
@@ -87,8 +85,8 @@ export async function createSabahoRoom({
   gameMode = "MIXED",
   isTeamPlay = true,
   roundsTotal = 6,
-  team1Name = "ÙØ±ÙŠÙ‚ Ø§Ù„Ø£Ù‡Ù„ÙŠ",
-  team2Name = "ÙØ±ÙŠÙ‚ Ø§Ù„Ø²Ù…Ø§Ù„Ùƒ",
+  team1Name = "فريق الأهلي",
+  team2Name = "فريق الزمالك",
 }: {
   userId: string;
   title: string;
@@ -116,14 +114,14 @@ export async function createSabahoRoom({
   return prisma.sabahoRoom.create({
     data: {
       roomCode,
-      title: title.trim() || "ØªØ­Ø¯ÙŠ ØµØ¨Ø§Ø­Ùˆ ÙƒÙˆØ±Ø©",
+      title: title.trim() || "تحدي صباحو كورة",
       visibility,
       passwordHash,
       gameMode,
       isTeamPlay,
       roundsTotal: Math.max(3, Math.min(12, roundsTotal)),
-      team1Name: (team1Name || "").trim() || "ÙØ±ÙŠÙ‚ Ø§Ù„Ø£Ù‡Ù„ÙŠ",
-      team2Name: (team2Name || "").trim() || "ÙØ±ÙŠÙ‚ Ø§Ù„Ø²Ù…Ø§Ù„Ùƒ",
+      team1Name: (team1Name || "").trim() || "فريق الأهلي",
+      team2Name: (team2Name || "").trim() || "فريق الزمالك",
       createdById: userId,
       status: "WAITING",
       players: {
@@ -240,8 +238,8 @@ export async function getSabahoRoomState({
   const isBuzzerPlayer = room.activeBuzzerPlayerId === selfPlayer.id;
 
   const pr = activeQuestion?.type === "PASSWORD" ? activeQuestion.passwordRound : undefined;
-  const isPasswordClueGiver = !!pr && Object.values(pr.giverIds).includes(selfPlayer.id);
-  const isPasswordGuesser = !!pr && Object.values(pr.guesserIds).includes(selfPlayer.id);
+  const isPasswordClueGiver = !!pr && pr.giverId === selfPlayer.id;
+  const isPasswordGuesser = !!pr && pr.giverId !== selfPlayer.id;
   if (activeQuestion?.type === "PASSWORD" && !isPasswordClueGiver && room.currentPhase === "PASSWORD_ROUND") {
     // Only the clue givers get to see the secret answer
     activeQuestion = { ...activeQuestion, password: undefined };
@@ -311,7 +309,6 @@ export async function getSabahoRoomState({
       isBuzzerPlayer,
       isClueGiver: room.clueGiverPlayerId === selfPlayer.id,
       isPasswordClueGiver,
-      isPasswordGuesser,
     },
   };
 }
@@ -417,9 +414,10 @@ export async function startSabahoGame({
     throw new Error("At least 2 players are required to start.");
   }
 
-  const firstQuestion = assignPasswordClueGivers(
+  const firstQuestion = initPasswordRound(
     await generateSabahoChallenge(room.gameMode, 1),
     room.players,
+    1,
   );
   let initialPhase: "AUCTION_BIDDING" | "CAREER_REVEAL" | "SPEED_CHALLENGE" | "PASSWORD_ROUND" = "AUCTION_BIDDING";
   let timerSeconds = 30;
@@ -528,7 +526,7 @@ export async function bidSabahoAction({
         actorId: player.id,
         type: "BID",
         value: String(bid),
-        details: `ðŸ”¥ ${player.displayName} bid [${bid}] in the Auction!`,
+        details: `🔥 ${player.displayName} bid [${bid}] in the Auction!`,
       },
     });
   });
@@ -586,7 +584,7 @@ export async function passBidSabahoAction({
         data: {
           roomId: room.id,
           type: "PASS_BID",
-          details: `ðŸ The Auction closed at [${room.auctionHighBid}]! ${winner.displayName} has 30s to name them!`,
+          details: `🏁 The Auction closed at [${room.auctionHighBid}]! ${winner.displayName} has 30s to name them!`,
         },
       });
     });
@@ -702,7 +700,7 @@ export async function buzzSabahoAction({
         roomId: room.id,
         actorId: player.id,
         type: "BUZZ",
-        details: `ðŸš¨ ${player.displayName} pressed the BUZZER! 30 seconds to answer!`,
+        details: `🚨 ${player.displayName} pressed the BUZZER! 30 seconds to answer!`,
       },
     });
   });
@@ -791,7 +789,7 @@ export async function submitGuessSabahoAction({
           roomId: room.id,
           actorId: player.id,
           type: "SUBMIT_GUESS",
-          details: `ðŸŽ¯ ${player.displayName} guessed [ ${guess} ] -> âœ… CORRECT! (${targetAr}) +${points} pts! ${result.explanation}`,
+          details: `🎯 ${player.displayName} guessed [ ${guess} ] -> ✅ CORRECT! (${targetAr}) +${points} pts! ${result.explanation}`,
         },
       });
     });
@@ -814,7 +812,7 @@ export async function submitGuessSabahoAction({
           roomId: room.id,
           actorId: player.id,
           type: "SUBMIT_GUESS",
-          details: `âŒ ${player.displayName} guessed [ ${guess} ] -> Incorrect! ${result.explanation}`,
+          details: `❌ ${player.displayName} guessed [ ${guess} ] -> Incorrect! ${result.explanation}`,
         },
       });
     });
@@ -859,11 +857,11 @@ export async function passwordHintSabahoAction({
 
   const { q, secret, pr } = loadPasswordRound(room);
 
-  if (pr.giverIds[pr.turnTeam] !== player.id) {
-    throw new Error("Only the clue giver of the team on turn can give a hint.");
+  if (pr.giverId !== player.id) {
+    throw new Error("Only this round's clue giver can give hints.");
   }
   if (pr.hint) {
-    throw new Error("A hint was already given. Wait for your teammate to guess.");
+    throw new Error("A hint was already given. Wait for the guesses.");
   }
 
   const cleanHint = hint.trim();
@@ -884,8 +882,11 @@ export async function passwordHintSabahoAction({
     throw new Error("The hint cannot contain or share a root with the secret answer.");
   }
 
+  const ordered = [...room.players].sort((a, b) => a.seatIndex - b.seatIndex);
   pr.hint = cleanHint;
-  pr.history.push({ team: pr.turnTeam, hint: cleanHint, points: pr.attemptPoints });
+  pr.wrongGuesserIds = [];
+  pr.turnPlayerId = nextPlayerAfter(ordered, pr.giverId, pr.giverId).id;
+  pr.history.push({ hint: cleanHint, points: pr.attemptPoints, guesses: [] });
 
   await prisma.$transaction(async (tx) => {
     await tx.sabahoRoom.update({
@@ -897,7 +898,7 @@ export async function passwordHintSabahoAction({
         roomId: room.id,
         actorId: player.id,
         type: "PASSWORD_PASS", // reused enum value: hint logged
-        details: `💡 ${player.displayName} (${pr.turnTeam === 1 ? room.team1Name : room.team2Name}) hint: [ ${cleanHint} ] for ${pr.attemptPoints} pts`,
+        details: `💡 ${player.displayName} hint: [ ${cleanHint} ] for ${pr.attemptPoints} pts`,
       },
     });
   });
@@ -923,11 +924,14 @@ export async function passwordGuessSabahoAction({
 
   const { q, secret, pr } = loadPasswordRound(room);
 
-  if (pr.guesserIds[pr.turnTeam] !== player.id) {
-    throw new Error("Only the guesser of the team on turn can guess.");
+  if (pr.giverId === player.id) {
+    throw new Error("The clue giver cannot guess.");
   }
   if (!pr.hint) {
     throw new Error("Wait for the clue giver to give a hint.");
+  }
+  if (pr.turnPlayerId !== player.id) {
+    throw new Error("It is not your turn to guess.");
   }
 
   const result = await validatePlayerGuessWithGemini({
@@ -936,17 +940,20 @@ export async function passwordGuessSabahoAction({
     guess,
   });
 
-  const last = pr.history[pr.history.length - 1];
-  if (last) last.guess = guess;
+  const current = pr.history[pr.history.length - 1];
+  current?.guesses.push({ playerId: player.id, name: player.displayName, guess });
 
   const isMatchOver = room.roundNumber >= room.roundsTotal;
-  const teamsInPlay = (Object.keys(pr.giverIds).map(Number) as Array<1 | 2>);
+  const giver = room.players.find((p) => p.id === pr.giverId);
+
+  // Leader after this round decides the match winner
+  const finalWinnerId = (extra: Record<string, number>) =>
+    [...room.players].sort(
+      (a, b) => b.score + (extra[b.id] ?? 0) - (a.score + (extra[a.id] ?? 0)),
+    )[0]?.id ?? null;
 
   if (result.valid) {
     const points = pr.attemptPoints;
-    const newT1 = room.team1Score + (pr.turnTeam === 1 ? points : 0);
-    const newT2 = room.team2Score + (pr.turnTeam === 2 ? points : 0);
-    const winningTeam = isMatchOver ? (newT1 > newT2 ? 1 : newT2 > newT1 ? 2 : 0) : null;
     pr.hint = null;
 
     await prisma.$transaction(async (tx) => {
@@ -954,14 +961,24 @@ export async function passwordGuessSabahoAction({
         where: { id: player.id },
         data: { score: player.score + points, roundPoints: player.roundPoints + points },
       });
+      if (giver) {
+        await tx.sabahoRoomPlayer.update({
+          where: { id: giver.id },
+          data: { score: giver.score + points, roundPoints: giver.roundPoints + points },
+        });
+      }
       await tx.sabahoRoom.update({
         where: { id: room.id },
         data: {
-          team1Score: newT1,
-          team2Score: newT2,
           currentPhase: isMatchOver ? "FINISHED" : "ROUND_OVER",
           status: isMatchOver ? "FINISHED" : "PLAYING",
-          winnerTeam: winningTeam,
+          winnerId: isMatchOver ? finalWinnerId({ [player.id]: points, [pr.giverId]: points }) : null,
+          ...(room.gameMode === "PASSWORD"
+            ? {}
+            : {
+                team1Score: room.team1Score + (player.team === 1 ? points : 0),
+                team2Score: room.team2Score + (player.team === 2 ? points : 0),
+              }),
           roundWinnerId: player.id,
           activeQuestionJson: JSON.stringify(q),
           timerEndsAt: null,
@@ -972,7 +989,7 @@ export async function passwordGuessSabahoAction({
           roomId: room.id,
           actorId: player.id,
           type: "PASSWORD_CORRECT",
-          details: `🎉 ${player.displayName} guessed [ ${guess} ] -> ✅ CORRECT! (${secret.wordAr}) +${points} pts!`,
+          details: `🎉 ${player.displayName} guessed [ ${guess} ] -> ✅ CORRECT! (${secret.wordAr}) +${points} pts (clue giver ${giver?.displayName ?? ""} also +${points})`,
         },
       });
     });
@@ -980,12 +997,19 @@ export async function passwordGuessSabahoAction({
     return { valid: true, explanation: result.explanation, playerName: secret.wordAr };
   }
 
-  const nextPoints = pr.attemptPoints - 1;
-  const otherTeam = pr.turnTeam === 1 ? 2 : 1;
-  pr.attemptPoints = nextPoints;
-  pr.hint = null;
-  if (teamsInPlay.includes(otherTeam)) pr.turnTeam = otherTeam;
-  const exhausted = nextPoints <= 0;
+  pr.wrongGuesserIds.push(player.id);
+  const ordered = [...room.players].sort((a, b) => a.seatIndex - b.seatIndex);
+  pr.turnPlayerId = nextPlayerAfter(ordered, player.id, pr.giverId).id;
+  const guessers = room.players.filter((p) => p.id !== pr.giverId);
+  const allWrong = guessers.every((p) => pr.wrongGuesserIds.includes(p.id));
+  let exhausted = false;
+  if (allWrong) {
+    pr.attemptPoints -= 1;
+    pr.hint = null;
+    pr.wrongGuesserIds = [];
+    pr.turnPlayerId = nextPlayerAfter(ordered, pr.giverId, pr.giverId).id;
+    exhausted = pr.attemptPoints <= 0;
+  }
 
   await prisma.$transaction(async (tx) => {
     await tx.sabahoRoom.update({
@@ -996,13 +1020,7 @@ export async function passwordGuessSabahoAction({
           ? {
               currentPhase: isMatchOver ? "FINISHED" : "ROUND_OVER",
               status: isMatchOver ? "FINISHED" : "PLAYING",
-              winnerTeam: isMatchOver
-                ? room.team1Score > room.team2Score
-                  ? 1
-                  : room.team2Score > room.team1Score
-                    ? 2
-                    : 0
-                : null,
+              winnerId: isMatchOver ? finalWinnerId({}) : null,
               roundWinnerId: null,
               timerEndsAt: null,
             }
@@ -1015,8 +1033,8 @@ export async function passwordGuessSabahoAction({
         actorId: player.id,
         type: "SUBMIT_GUESS",
         details: exhausted
-          ? `❌ ${player.displayName} guessed [ ${guess} ] -> Incorrect! No points left. The answer was ${secret.wordAr}.`
-          : `❌ ${player.displayName} guessed [ ${guess} ] -> Incorrect! Turn passes to the other team (${nextPoints} pts).`,
+          ? `❌ ${player.displayName} guessed [ ${guess} ] -> Incorrect! Nobody got it. The answer was ${secret.wordAr}.`
+          : `❌ ${player.displayName} guessed [ ${guess} ] -> Incorrect!${allWrong ? ` Next hint is worth ${pr.attemptPoints} pts.` : ""}`,
       },
     });
   });
@@ -1093,8 +1111,8 @@ export async function judgeSabahoAnswerAction({
         roomId: room.id,
         type: "JUDGE_ANSWER",
         details: isCorrect
-          ? `âœ… Answer approved! +${points} points awarded to ${targetPlayer?.displayName || "player"}!`
-          : `âŒ Answer rejected! No points awarded.`,
+          ? `✅ Answer approved! +${points} points awarded to ${targetPlayer?.displayName || "player"}!`
+          : `❌ Answer rejected! No points awarded.`,
       },
     });
   });
@@ -1120,9 +1138,10 @@ export async function nextRoundSabahoAction({
   }
 
   const nextRoundNum = room.roundNumber + 1;
-  const nextQuestion = assignPasswordClueGivers(
+  const nextQuestion = initPasswordRound(
     await generateSabahoChallenge(room.gameMode, nextRoundNum),
     room.players,
+    nextRoundNum,
   );
 
   let initialPhase: "AUCTION_BIDDING" | "CAREER_REVEAL" | "SPEED_CHALLENGE" | "PASSWORD_ROUND" = "AUCTION_BIDDING";
@@ -1198,9 +1217,10 @@ export async function replaySabahoGameAction({
     throw new Error("Only the host can restart match.");
   }
 
-  const firstQuestion = assignPasswordClueGivers(
+  const firstQuestion = initPasswordRound(
     await generateSabahoChallenge(room.gameMode, 1),
     room.players,
+    1,
   );
   let initialPhase: "AUCTION_BIDDING" | "CAREER_REVEAL" | "SPEED_CHALLENGE" | "PASSWORD_ROUND" = "AUCTION_BIDDING";
   let timerSeconds = 30;
