@@ -111,7 +111,7 @@ export async function validatePlayerGuessWithGemini({
   if (hasConfiguredGeminiKey()) {
     const prompt = [
       "You are a strict referee in a football trivia challenge (صباحو تحدي).",
-      `Target footballer name: "${targetPlayerNameAr}" (${targetPlayerNameEn || ""})`,
+      `Target answer (a football player, coach, club or stadium): "${targetPlayerNameAr}" (${targetPlayerNameEn || ""})`,
       `User's guess: "${cleanGuess}"`,
       "Task: Decide if the user's guess refers to the target footballer.",
       "Accept legitimate matches:",
@@ -231,35 +231,29 @@ export async function generateSabahoChallenge(
         }
       } else if (targetType === "PASSWORD") {
         const prompt = [
-          "Generate 10 diverse football keywords for Sabaho Tahadi Password Game (كلمة السر).",
-          "Include a mix of famous players, coaches, clubs, and football terms (e.g. ضربة جزاء, تسلل, الفار, الكلاسيكو).",
+          "Pick ONE secret answer for the football 'Password' game (كلمة السر) of Sabaho Tahadi.",
+          "It must be a famous football player, coach, club or stadium (mix Egyptian, Arab and world football).",
+          "Pick something different each time; do not always choose the most obvious one.",
           'Return ONLY a JSON object with this exact shape:',
-          '{',
-          '  "words": [',
-          '    {"wordAr": string, "wordEn": string, "category": "لاعب" | "مدرب" | "نادي" | "مصطلح" | "بطولة"}',
-          '  ]',
-          '}',
+          '{"wordAr": string, "wordEn": string, "category": "لاعب" | "مدرب" | "نادي" | "ملعب"}',
         ].join("\n");
 
         const res = await callGeminiJson<{
-          words: Array<{
-            wordAr: string;
-            wordEn: string;
-            category: "لاعب" | "مدرب" | "نادي" | "مصطلح" | "بطولة";
-          }>;
+          wordAr: string;
+          wordEn: string;
+          category: "لاعب" | "مدرب" | "نادي" | "ملعب";
         }>(prompt, 4000);
 
-        if (Array.isArray(res?.words) && res.words.length >= 6) {
+        if (res?.wordAr?.trim()) {
           return {
             type: "PASSWORD",
             roundNumber,
-            passwordList: res.words.map((w, idx) => ({
-              id: `gemini-pwd-${idx}-${Date.now()}`,
-              wordAr: w.wordAr,
-              wordEn: w.wordEn || w.wordAr,
-              category: w.category || "لاعب",
-            })),
-            currentPasswordIndex: 0,
+            password: {
+              id: `gemini-pwd-${Date.now()}`,
+              wordAr: res.wordAr.trim(),
+              wordEn: res.wordEn?.trim() || res.wordAr.trim(),
+              category: res.category || "لاعب",
+            },
           };
         }
       } else if (targetType === "SPEED") {

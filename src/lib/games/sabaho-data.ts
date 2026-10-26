@@ -380,7 +380,7 @@ export type PasswordItem = {
   id: string;
   wordAr: string;
   wordEn: string;
-  category: "لاعب" | "مدرب" | "نادي" | "مصطلح" | "بطولة";
+  category: "لاعب" | "مدرب" | "نادي" | "مصطلح" | "بطولة" | "ملعب";
 };
 
 export const PASSWORD_WORDS: PasswordItem[] = [
@@ -439,4 +439,10 @@ export const PASSWORD_WORDS: PasswordItem[] = [
   { id: "pwd-53", wordAr: "النصر السعودي", wordEn: "Al Nassr", category: "نادي" },
   { id: "pwd-54", wordAr: "عمر مرموش", wordEn: "Omar Marmoush", category: "لاعب" },
   { id: "pwd-55", wordAr: "مصطفى محمد", wordEn: "Mostafa Mohamed", category: "لاعب" },
+  { id: "pwd-56", wordAr: "ملعب كامب نو", wordEn: "Camp Nou", category: "ملعب" },
+  { id: "pwd-57", wordAr: "سانتياغو برنابيو", wordEn: "Santiago Bernabeu", category: "ملعب" },
+  { id: "pwd-58", wordAr: "ملعب أنفيلد", wordEn: "Anfield", category: "ملعب" },
+  { id: "pwd-59", wordAr: "ملعب ويمبلي", wordEn: "Wembley", category: "ملعب" },
+  { id: "pwd-60", wordAr: "ملعب القاهرة الدولي", wordEn: "Cairo International Stadium", category: "ملعب" },
+  { id: "pwd-61", wordAr: "ملعب أولد ترافورد", wordEn: "Old Trafford", category: "ملعب" },
 ];

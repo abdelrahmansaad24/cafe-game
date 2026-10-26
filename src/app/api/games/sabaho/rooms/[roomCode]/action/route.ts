@@ -10,8 +10,8 @@ import {
   nextCareerStepSabahoAction,
   nextRoundSabahoAction,
   passBidSabahoAction,
-  passwordCorrectSabahoAction,
-  passwordPassSabahoAction,
+  passwordGuessSabahoAction,
+  passwordHintSabahoAction,
   replaySabahoGameAction,
   SABAHO_ROOM_CODE_REGEX,
   submitGuessSabahoAction,
@@ -50,10 +50,12 @@ const actionSchema = z.discriminatedUnion("type", [
     guess: z.string().trim().min(1).max(50),
   }),
   z.object({
-    type: z.literal("PASSWORD_CORRECT"),
+    type: z.literal("PASSWORD_HINT"),
+    hint: z.string().trim().min(1).max(30),
   }),
   z.object({
-    type: z.literal("PASSWORD_PASS"),
+    type: z.literal("PASSWORD_GUESS"),
+    guess: z.string().trim().min(1).max(50),
   }),
   z.object({
     type: z.literal("JUDGE_ANSWER"),
@@ -136,18 +138,21 @@ export async function POST(request: Request, context: RouteContext) {
         });
         return NextResponse.json({ ok: true, result: guessResult });
       }
-      case "PASSWORD_CORRECT":
-        await passwordCorrectSabahoAction({
+      case "PASSWORD_HINT":
+        await passwordHintSabahoAction({
           roomCode,
           actorUserId: session.user.id,
+          hint: parsed.hint,
         });
         break;
-      case "PASSWORD_PASS":
-        await passwordPassSabahoAction({
+      case "PASSWORD_GUESS": {
+        const guessResult = await passwordGuessSabahoAction({
           roomCode,
           actorUserId: session.user.id,
+          guess: parsed.guess,
         });
-        break;
+        return NextResponse.json({ ok: true, result: guessResult });
+      }
       case "JUDGE_ANSWER":
         await judgeSabahoAnswerAction({
           roomCode,

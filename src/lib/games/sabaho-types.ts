@@ -11,15 +11,23 @@ import {
 
 export type SabahoChallengeType = "AUCTION" | "CAREER_PATH" | "SPEED" | "PASSWORD";
 
+export type PasswordRoundState = {
+  turnTeam: 1 | 2;
+  attemptPoints: number;
+  giverIds: Record<string, string>;
+  guesserIds: Record<string, string>;
+  hint: string | null;
+  history: Array<{ team: 1 | 2; hint: string; guess?: string; points: number }>;
+};
+
 export type ActiveSabahoQuestion = {
   type: SabahoChallengeType;
   roundNumber: number;
   auction?: AuctionItem;
   career?: CareerPathItem;
   speed?: SpeedPromptItem;
-  passwordList?: PasswordItem[];
-  currentPasswordIndex?: number;
-  clueGiverIds?: string[];
+  password?: PasswordItem;
+  passwordRound?: PasswordRoundState;
 };
 
 export function pickChallengeForRound(
@@ -59,14 +67,10 @@ export function pickChallengeForRound(
     const item = pool[Math.floor(Math.random() * pool.length)];
     return { type: "SPEED", roundNumber, speed: item };
   } else {
-    // Password round: pick a shuffled list of 10 words
-    const shuffled = [...PASSWORD_WORDS].sort(() => Math.random() - 0.5);
-    return {
-      type: "PASSWORD",
-      roundNumber,
-      passwordList: shuffled.slice(0, 10),
-      currentPasswordIndex: 0,
-    };
+    // Password round: one secret player/coach/club/stadium
+    const pool = PASSWORD_WORDS.filter((w) => ["لاعب", "مدرب", "نادي", "ملعب"].includes(w.category));
+    const item = pool[Math.floor(Math.random() * pool.length)];
+    return { type: "PASSWORD", roundNumber, password: item };
   }
 }
 
